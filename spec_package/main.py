@@ -4,6 +4,7 @@ from spec_rag import setup_config, load_or_create_indices, check_scores
 from sentence_transformers import SentenceTransformer
 import pandas as pd
 import os
+
 # Set GPU ID to 0
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -53,30 +54,55 @@ def main():
     embed_model = SentenceTransformer(config['embed_model'], device="cuda")
 
     # Initialize a single DataFrame to log all results
-    log_df = pd.DataFrame(columns=["dataset", "k", "faiss_load_time", "query_embed_time", "search_time", "total_time"])
+    log_df = pd.DataFrame(columns=[
+        "dataset", 
+        "k", 
+        "faiss_load_time", 
+        "query_embed_time", 
+        "search_time", 
+        "total_time",
+        "use_hnsw",
+        "query_text"  # Added query_text column
+    ])
 
-    # Generic query
-    for i in range(1, 1000):
+    k_nearest_n = [1, 10, 100, 1000]
+    # Run check_scores for both HNSW and standard FAISS
+    for i in k_nearest_n:
         for dataset_name, dataset in {"qa_dataset": dataset_dictionary.get("qa_dataset"), 
                                       "text_dataset": dataset_dictionary.get("text_dataset")}.items():
             
             query_text = "What is" if dataset_name == "qa_dataset" else "Orange"
 
-            logging.info(f"Running check_scores on {dataset_name} with k={i}")
-            log_df = check_scores(
-                datasets=dataset,
-                index_path=qa_index_path if dataset_name == "qa_dataset" else text_index_path,
-                k_example=i,
-                query_text=query_text,
-                embed_model=embed_model,
-                log_df=log_df,
-            )
+            for use_hnsw in [False, True]:  # Run twice, once for standard FAISS and once for HNSW
+                logging.info(f"Running check_scores on {dataset_name} with k={i}, HNSW={use_hnsw}, query='{query_text}'")
+                
+                try:
+                    log_df, retrieved_examples = check_scores(
+                        datasets=dataset,
+                        index_path=qa_index_path if dataset_name == "qa_dataset" else text_index_path,
+                        k_example=i,
+                        query_text=query_text,
+                        embed_model=embed_model,
+                        log_df=log_df,
+                        use_hnsw=use_hnsw
+                    )
+
+                    # Print retrieved examples
+                    print(f"\n🔹 Dataset: {dataset_name}, k={i}, HNSW={use_hnsw}")
+                    print(f"🔸 Query: {query_text}")
+                    print(f"🔸 Retrieved Examples (Top {i}):")
+                    for idx, example in enumerate(retrieved_examples, start=1):
+                        print(f"  {idx}. {example}\n")
+                    logging.info(f"Retrieved {len(retrieved_examples)} examples for query: '{query_text}'")
+
+                except Exception as e:
+                    logging.error(f"Error running check_scores for {dataset_name} (HNSW={use_hnsw}): {e}")
+                    continue  # Skip to the next iteration if an error occurs
+            
 
     # Save the DataFrame to a CSV file after all iterations
     log_df.to_csv("similarity_search_timings.csv", index=False)
     logging.info("Logged similarity search times to similarity_search_timings.csv")
-
-
 
 if __name__ == "__main__":
     logging.info("Script execution started")

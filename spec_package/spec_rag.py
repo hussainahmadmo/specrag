@@ -83,46 +83,101 @@ import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-def check_scores(datasets, index_path: str, k_example: int, query_text: str, embed_model, log_df: pd.DataFrame):
+import faiss
+import os
+import numpy as np
+import time
+import logging
+import pandas as pd
+
+def check_scores(datasets, 
+                 index_path: str,
+                k_example: int, 
+                query_text: str, 
+                embed_model, 
+                log_df: pd.DataFrame, 
+                use_hnsw: bool = False):
     """
-    Perform a similarity search and log execution times.
+    Perform a similarity search using either HNSW FAISS or standard FAISS and log execution times.
+
+    Args:
+        datasets: The dataset containing the FAISS index.
+        index_path (str): Path to the FAISS index file.
+        k_example (int): Number of nearest neighbors to retrieve.
+        query_text (str): The query for which to perform similarity search.
+        embed_model: The embedding model used to encode queries.
+        log_df (pd.DataFrame): DataFrame to store performance logs.
+        use_hnsw (bool): Whether to use HNSW FAISS. Default is False (uses standard FAISS).
+    
+    Returns:
+        log_df (pd.DataFrame): Updated log dataframe with execution times.
+        retrieved_examples (list): List of retrieved dataset examples.
     """
     try:
         start_time = time.time()  # Start timing the whole function
-        # Load the FAISS index by its name
+        # Load or create FAISS index
         t1 = time.time()
-        datasets.load_faiss_index("embeddings", index_path)
-        faiss_load_time = time.time() - t1
-        logging.info(f"FAISS index loading took {faiss_load_time:.4f} seconds")
-        
+        d = embed_model.get_sentence_embedding_dimension()  # Get embedding size
+
+        if os.path.exists(index_path) and not use_hnsw:
+            logging.info(f"Loading FAISS Flat L2 index from {index_path}")
+            index = faiss.read_index(index_path)
+
+        elif os.path.exists(index_path) and use_hnsw:
+            logging.info(f"Creating a new HNSW index instead of using the saved FAISS index")
+            index = faiss.IndexHNSWFlat(d, 32)
+            index.hnsw.efSearch = max(50, k_example * 2)  # Dynamically adjust efSearch
+            datasets.load_faiss_index("embeddings", index_path)  # Rebuild the index
+
+        else:
+            logging.info(f"Creating a new FAISS index. HNSW mode: {use_hnsw}")
+            if use_hnsw:
+                index = faiss.IndexHNSWFlat(d, 32)
+                index.hnsw.efConstruction = 200
+                index.hnsw.efSearch = max(50, k_example * 2)
+            else:
+                index = faiss.IndexFlatL2(d)
+
+            # Ensure FAISS index is properly trained and populated
+            if not index.is_trained:
+                logging.info("Training FAISS index...")
+                index.train(datasets["embeddings"])
+
+            index.add(datasets["embeddings"])  # Explicitly add embeddings to FAISS
+
+        if isinstance(index, faiss.IndexHNSWFlat):
+            logging.info("Using HNSW FAISS index")
+        elif isinstance(index, faiss.IndexFlatL2):
+            logging.info("Using Flat L2 FAISS index ⚠️")
+
         # Generate the embedding for the query
         t2 = time.time()
         query_embedding = np.array([embed_model.encode(query_text)], dtype="float32")
         query_embed_time = time.time() - t2
         logging.info(f"Query embedding took {query_embed_time:.4f} seconds")
-        
+
         # Perform the search
         t3 = time.time()
-        scores, retrieved_examples = datasets.get_nearest_examples(
-            index_name="embeddings",
-            query=query_embedding,
-            k=k_example
-        )
+        distances, indices = index.search(query_embedding, k_example)
         search_time = time.time() - t3
         logging.info(f"Similarity search took {search_time:.4f} seconds")
 
         total_time = time.time() - start_time
         logging.info(f"Total execution time: {total_time:.4f} seconds")
 
+        # Retrieve examples based on FAISS indices
+        retrieved_examples = [datasets[int(idx)] for idx in indices[0] if idx != -1]
+
         # Append the results to the DataFrame
         dataset_name = "qa_dataset" if "question-answer" in index_path else "text_dataset"
-        log_df.loc[len(log_df)] = [dataset_name, k_example, faiss_load_time, query_embed_time, search_time, total_time]
+        log_df.loc[len(log_df)] = [dataset_name, k_example, faiss_load_time, query_embed_time, search_time, total_time, use_hnsw, query_text]
 
-        return log_df  # Return updated DataFrame
+        return log_df, retrieved_examples  # Return updated DataFrame and retrieved examples
 
     except Exception as e:
         logging.error(f"Error during score checking: {e}")
         raise
+
 
 
 # # --- QUERY ENGINE SETUP ---
