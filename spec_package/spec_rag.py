@@ -18,13 +18,15 @@ config = ConfigManager.load_config()
 dataset_dict = {}
 
 def setup_config():
-    """Setup environments settings."""
-    Settings.embed_model = HuggingFaceEmbedding(model_name=config['embed_model'])
-    Settings.chunk_size = config['chunk_size']
-    Settings.chunk_overlap = config['chunk_overlap']
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-    login(config["token_id"])
+    # logging.info("Inside the setup config file")
+    # """Setup environments settings."""
+    # Settings.embed_model = HuggingFaceEmbedding(model_name=config['embed_model'])
+    # Settings.chunk_size = config['chunk_size']
+    # Settings.chunk_overlap = config['chunk_overlap']
+    # logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    # logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+    # login(config["token_id"])
+    pass
 
 def embed(text, model):
     return model.encode(text)
@@ -81,44 +83,42 @@ import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-def check_scores(datasets, index_path : str, k_example : int , query_text : str):
+def check_scores(datasets, index_path: str, k_example: int, query_text: str, embed_model, log_df: pd.DataFrame):
     """
-    Perform a similarity search and print scores and retrieved examples.
+    Perform a similarity search and log execution times.
     """
-    logging.info(f"For {k_example} examples")
     try:
         start_time = time.time()  # Start timing the whole function
-        
         # Load the FAISS index by its name
         t1 = time.time()
-        datasets.load_faiss_index("embeddings", index_path, query_text)
-        logging.info(f"FAISS index loading took {time.time() - t1:.4f} seconds")
-
-        # Initialize the SentenceTransformer model
-        t2 = time.time()
-        embed_model = SentenceTransformer(config['embed_model'], device="cuda")
-        logging.info(f"Model initialization took {time.time() - t2:.4f} seconds")
-
+        datasets.load_faiss_index("embeddings", index_path)
+        faiss_load_time = time.time() - t1
+        logging.info(f"FAISS index loading took {faiss_load_time:.4f} seconds")
+        
         # Generate the embedding for the query
-        t3 = time.time()
+        t2 = time.time()
         query_embedding = np.array([embed_model.encode(query_text)], dtype="float32")
-        logging.info(f"Query embedding took {time.time() - t3:.4f} seconds")
-
+        query_embed_time = time.time() - t2
+        logging.info(f"Query embedding took {query_embed_time:.4f} seconds")
+        
         # Perform the search
-        t4 = time.time()
+        t3 = time.time()
         scores, retrieved_examples = datasets.get_nearest_examples(
             index_name="embeddings",
             query=query_embedding,
             k=k_example
         )
-        logging.info(f"Similarity search took {time.time() - t4:.4f} seconds")
-
-        # Log the results
-        logging.info(f"Scores: {scores}")
-        logging.info(f"Retrieved Examples: {retrieved_examples}")
+        search_time = time.time() - t3
+        logging.info(f"Similarity search took {search_time:.4f} seconds")
 
         total_time = time.time() - start_time
         logging.info(f"Total execution time: {total_time:.4f} seconds")
+
+        # Append the results to the DataFrame
+        dataset_name = "qa_dataset" if "question-answer" in index_path else "text_dataset"
+        log_df.loc[len(log_df)] = [dataset_name, k_example, faiss_load_time, query_embed_time, search_time, total_time]
+
+        return log_df  # Return updated DataFrame
 
     except Exception as e:
         logging.error(f"Error during score checking: {e}")
