@@ -3,253 +3,335 @@ import time
 import logging
 import numpy as np
 import pandas as pd
-
-# ---------- FAISS -----------
-import faiss
-
-# ---------- HuggingFace / Datasets -----------
-from datasets import load_dataset
-
-# ---------- Sentence Embeddings -----------
-from sentence_transformers import SentenceTransformer
-
-# ---------- Example "ConfigManager" -----------
-# If you have your own config_manager.py, you can remove/replace this.
-class ConfigManager:
-    @staticmethod
-    def get_config():
-        return {
-            "embed_model": "sentence-transformers/all-MiniLM-L6-v2",
-            "qa_index_path": "qa_index.faiss",
-            "text_index_path": "text_index.faiss"
-        }
-
+import faiss # ---------- FAISS -----------
+from datasets import load_dataset # ---------- HuggingFace / Datasets -----------
+from sentence_transformers import SentenceTransformer # ---------- Sentence Embeddings -----------
+from config_manager import ConfigManager
+from typing import List, Dict
 # ---------- Logging Setup -----------
 logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="app.log",filemode="a",level=logging.INFO,format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# ========== 1. HELPER FUNCTIONS FOR FAISS INDEX CREATION ==========
+# ---------- GLOBAL VARIABLES -----------
+config = ConfigManager.load_config("../configs/central.yaml") 
 
-def create_flat_index(dimension: int) -> faiss.Index:
+
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core import Document
+from llama_index.core.node_parser import TokenTextSplitter
+from llama_index.core.schema import BaseNode
+import json 
+
+def chunk_text(text : str,
+               chunk_size : int,
+               document_name : str, 
+               chunk_path : str,
+               ):
     """
-    Create a Flat L2 FAISS index for the given dimension.
+    Create chunks of size chunk_size from text file.
+
+    Args:
+        text(str) - the string to divide into chunks.
+        chunk_size - the size of chunks to divide the text.
+        chunks_path - the path where json chunks are saved.
     """
-    index = faiss.IndexFlatL2(dimension)
-    return index
+    #load chunks from already created json
+    if os.path.exists(chunk_path):
+        with open(chunk_path, "r", encoding="utf-8") as file:
+            chunks_data = json.load(file)
+        return chunks_data
+            
+    document = Document(text = text)
+    splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=0)
+    nodes = splitter.get_nodes_from_documents([document])
+    chunks_data = []
+    #convert to JSON friendly version
+    for i, node in enumerate(nodes):
+        chunks_data.append({
+                "chunk_id" : f"{document_name}+chunk_{i}",
+                "document_name": document_name,
+                "chunk_index" : i, 
+                "text" : node.text})
+    #save to JSON
+    with open(chunk_path, "w", encoding="utf=8") as f:
+        json.dump(chunks_data, f , indent=4, ensure_ascii=False)
 
-def create_hnsw_index(dimension: int, m: int = 32,
-                      ef_construction: int = 200,
-                      ef_search: int = 50) -> faiss.Index:
-    """
-    Create an HNSW FAISS index for the given dimension.
-    
-    :param dimension: Embedding size
-    :param m: Number of neighbors each node connects to
-    :param ef_construction: Determines graph quality (higher=slower but more accurate)
-    :param ef_search: Larger=better recall, slower search
-    """
-    index = faiss.IndexHNSWFlat(dimension, m)
-    index.hnsw.efConstruction = ef_construction
-    index.hnsw.efSearch = ef_search
-    return index
-
-def build_faiss_index(dataset, column_name: str, index_path: str, create_index_fn) -> faiss.Index:
-    """
-    Build a FAISS index by:
-      1. Creating a new index via `create_index_fn`.
-      2. Training the index (if needed).
-      3. Adding dataset embeddings to the index.
-      4. Saving the index to disk.
-    """
-    # Example embedding to determine dimension
-    example_embedding = dataset[0][column_name]
-    dimension = len(example_embedding)  # Usually the length of the embedding vector
-
-    # 1) Create empty index
-    index = create_index_fn(dimension)
-
-    # 2) Train index (if it supports training, e.g., IVF). For Flat/HNSW, no real "training" needed.
-    if not index.is_trained:
-        logging.info("Training FAISS index (if supported).")
-        embeddings = dataset[column_name]
-        if isinstance(embeddings, list):
-            embeddings = np.array(embeddings, dtype=np.float32)
-        index.train(embeddings)
-
-    # 3) Add embeddings
-    if isinstance(dataset[column_name], list):
-        embeddings = np.array(dataset[column_name], dtype=np.float32)
-        index.add(embeddings)
-    else:
-        # If dataset[column_name] is already a numpy array
-        index.add(dataset[column_name])
-
-    # 4) Save to disk
-    faiss.write_index(index, index_path)
-    logging.info(f"FAISS index saved to {index_path}")
-
-    return index
-
-def load_faiss_index(index_path: str) -> faiss.Index:
-    """Load a FAISS index from the given path."""
-    logging.info(f"Loading FAISS index from {index_path}")
-    index = faiss.read_index(index_path)
-    return index
-
-# ========== 2. LOADING OR CREATING DATASETS & INDEXES ==========
 from model_server import get_embedding, start_model_server
 start_model_server()
-
-def embed(text):
-    return {"embeddings": get_embedding(text)}
-
-def load_or_create_indices(use_hnsw: bool = False):
+def build_embeddings(json_path, index_path:str) :
     """
-    Initialize the dataset, create embeddings, and build FAISS indexes.
-    Returns both datasets & loaded FAISS indexes.
-    
-    :param use_hnsw: If True, build HNSW indexes; otherwise build Flat L2.
-    :return: Dictionary with datasets & indexes.
+    Read a json file and build embeddings from its text file.
+    Args:
+        json_path -  Path to the JSON file)
+    Returns - index - index instance
     """
-    config = ConfigManager.get_config()
-    text_index_path = config["text_index_path"]
-    embed_model_name = config["embed_model"]
-    # Decide which function to use for index creation
-    create_index_fn = create_hnsw_index if use_hnsw else create_flat_index
+    if os.path.exists(index_path):
+        index = faiss.read_index(index_path)
+        print(f"Index exist. Contains {index.ntotal} total embeddings with dim {index.d}")
+        return index
+    if not os.path.exists(index_path):
+        index = faiss.IndexFlatL2(config["embedding_dim"])
+        faiss.write_index(index, index_path)
 
-    # ---------- LOAD DATASETS ----------
-    logging.info("Loading HuggingFace Datasets for QA and Text Corpus.")
-    ds_text = load_dataset("rag-datasets/rag-mini-wikipedia", "text-corpus", split="passages")
+    index = faiss.read_index(index_path)
+    with open(json_path, "r" , encoding="utf-8") as f:
+        data = json.load(f)
 
-    # ---------- EMBEDDING STEP ----------
-    if "embeddings" not in ds_text.column_names:
-        ds_text = ds_text.map(lambda ex: {"embeddings": embed(ex["passage"])["embeddings"][0]})
-        print(type(ds_text[0]["embeddings"]))  # Should print <class 'list'>
-        print(len(ds_text[0]["embeddings"]))   # Should print 384
-        print(ds_text[0]["embeddings"][:5])    # Print first 5 numbers to verify
-    # ---------- CREATE / LOAD TEXT INDEX ----------
-    if not os.path.exists(text_index_path):
-        logging.info(f"No text index found at {text_index_path}. Building a new one.")
-        text_index = build_faiss_index(ds_text, "embeddings", text_index_path, create_index_fn)
-    else:
-        logging.info(f"Text index already exists at {text_index_path}. Loading it.")
-        text_index = load_faiss_index(text_index_path)
-
-    # Return everything in a dict
-    return {
-        "text_dataset": ds_text,
-        "text_index": text_index,
-    }
+    texts = [chunk["text"] for chunk in data]
+    embeddings = get_embedding(texts)
+    index.add(embeddings)
+    faiss.write_index(index, index_path)
+    return index
 
 # ========== 3. SIMILARITY SEARCH FUNCTION ==========
 
 def check_scores(
-    dataset,
     faiss_index: faiss.Index,
     k_example: int,
     query_text: str,
     log_df: pd.DataFrame,
-    use_hnsw: bool = False,
-    dataset_name: str = "qa_dataset"
 ):
     """
     Perform a similarity search using the provided FAISS index and log execution times.
     
-    :param dataset: The HF dataset with data
     :param faiss_index: A pre-built or loaded FAISS index
     :param k_example: Number of neighbors to retrieve
     :param query_text: The query to encode & search
     :param log_df: DataFrame for logging results
-    :param use_hnsw: Flag for logging only (HNSW or Flat)
-    :param dataset_name: For logging, e.g. "qa_dataset" or "text_dataset"
+
     :return: (updated log_df, retrieved_examples)
     """
-    try:
-        start_time = time.time()
+    
+    with open("./data/json_files/paul-graham-essays.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+    t_query = time.time()
+    query_embedding = np.array(get_embedding([query_text]), dtype=np.float32)  # Use model server functio
+    print(f"Query embedding shape: {query_embedding.shape}")
+    embed_time = time.time() - t_query
+    # 2) Perform the FAISS search
+    t_search = time.time()
+    distances, indices = faiss_index.search(query_embedding, k_example)
+    search_time = time.time() - t_search
+    retrieved_chunks = [data[i]["text"] for i in indices[0] if i < len(data)]
+    logging.info("Retreived chunks " + str(retrieved_chunks))
+    
 
-        # 1) Encode query using model server
-        t_query = time.time()
-        query_embedding = np.array(get_embedding(query_text), dtype=np.float32)  # Use model server function
-        embed_time = time.time() - t_query
+    # 4) Logging
+    logging.info(f"Query: {query_text}")
+    logging.info(f"Embed time: {embed_time:.4f} sec | Search time: {search_time:.4f} sec")
+    logging.info(f"Top {k_example} indices: {indices[0]}")
+    logging.info(f"Top {k_example} distances: {distances[0]}")
 
-        # 2) Perform the FAISS search
-        t_search = time.time()
-        distances, indices = faiss_index.search(query_embedding, k_example)
-        search_time = time.time() - t_search
+    # 5) Append row to log_df
+    log_df.loc[len(log_df)] = [
+        k_example,
+        embed_time,
+        search_time,
+        query_text
+    ]
 
-        # 3) Gather retrieved examples
-        retrieved_examples = [dataset[int(idx)] for idx in indices[0] if idx != -1]
+    return log_df, retrieved_chunks
 
-        total_time = time.time() - start_time
+# Load model directly
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModel
+import torch
 
-        # 4) Logging
-        logging.info(f"Using {'HNSW' if use_hnsw else 'Flat L2'} index")
-        logging.info(f"Query: {query_text}")
-        logging.info(f"Embed time: {embed_time:.4f} sec | Search time: {search_time:.4f} sec | Total: {total_time:.4f}")
-        logging.info(f"Top {k_example} indices: {indices[0]}")
-        logging.info(f"Top {k_example} distances: {distances[0]}")
+def load_model_tokenizer(model_path):
+    """Loads a LLaMA causal language model and its tokenizer with no gradient tracking to save memory."""
+    model = AutoModelForCausalLM.from_pretrained(
+                pretrained_model_name_or_path=model_path,
+            )  
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
+    return model, tokenizer
 
-        # 5) Append row to log_df
-        log_df.loc[len(log_df)] = [
-            dataset_name,  # "qa_dataset" or "text_dataset"
-            k_example,
-            embed_time,
-            search_time,
-            total_time,
-            use_hnsw,
-            query_text
-        ]
+import torch
+def encode_input(text: str, tokenizer, chunk_size=200, pad_token_id=0):
+    """
+    Convert string to tokenized chunks of fixed size.
 
-        return log_df, retrieved_examples
+    Args:
+        text (str): The input string to tokenize.
+        tokenizer: Tokenizer object to convert text to token-ids.
+        chunk_size (int, optional): Size of each chunk. Defaults to 200.
+        pad_token_id (int, optional): Token ID used for padding. Defaults to 0.
 
-    except Exception as e:
-        logging.error(f"Error in check_scores: {str(e)}")
-        return log_df, []
+    Returns:
+        dict: Dictionary with "input_ids" and "attention_mask" as tensors.
+    """
+    
+    # Tokenize the text
+    tokenized_text = tokenizer.encode(text, add_special_tokens=False)
+    
+    # Create chunks of fixed size
+    input_ids = []
+    attention_mask = []
+    
+    for i in range(0, len(tokenized_text), chunk_size):
+        chunk = tokenized_text[i:i + chunk_size]
+        
+        # Pad if the chunk is smaller than chunk_size
+        pad_length = chunk_size - len(chunk)
+        
+        if pad_length > 0:
+            chunk.extend([pad_token_id] * pad_length)  # Add padding
+        
+        input_ids.append(chunk)
+        attention_mask.append([1] * len(chunk) + [0] * pad_length)  # Mask padding
+        
+    return {
+        "input_ids": torch.tensor(input_ids, dtype=torch.long),
+        "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+    }
+
+def generate_with_kv_cache(token_ids : List[int],
+                            max_gen_len : int, 
+                            model1: AutoModelForCausalLM,
+                            past_key_values = None):
+    """
+    Return past key values
+       Args - 
+            token_ids - List of tokens to change
+            max_gen_len 
+       """
+    #view adds another dimension e.g (1, 364)
+    input_tensor = torch.tensor(token_ids, dtype=torch.long).view(1, -1).to(model1.device)
+    logging.info("Input tensor shape" + str(input_tensor.shape))
+    res_tokens = []
+
+    with torch.no_grad():
+        for i in range(max_gen_len):
+            output_dict = model1(input_tensor, past_key_values=past_key_values)
+            logging.info("Logits shape " + str(output_dict["logits"].shape))
+            logging.info(f"Logits shape for the last token: {output_dict['logits'][:, -1, :].shape}")
+            logging.info(f"First 5 logits for last token: {output_dict['logits'][:, -1, :][0, :5]}")
+
+            tok = torch.argmax(output_dict["logits"][:, -1, :])
+        
+            logging.info("Input tensor shape" + str(input_tensor.shape))
+            past_key_values = output_dict["past_key_values"]
+
+            # logging.info("Past key values" + str(past_key_values.shape))
+            if int(tok) in [128001, 128009, 128000]:
+                break
+            res_tokens.append(int(tok))
+            input_tensor = tok.view(1, -1)
+
+    return past_key_values, tokenizer.decode(res_tokens)
+
+def compute_kv_cache_size(past_key_values):
+    if past_key_values is None:
+        return 0  # No KV cache stored yet
+    total_size = 0
+    for layer_idx, (key_tensor, value_tensor) in enumerate(past_key_values):
+        # Compute memory usage per tensor
+        key_size = key_tensor.numel() * key_tensor.element_size()
+        value_size = value_tensor.numel() * value_tensor.element_size()
+        # Accumulate total KV cache size
+        total_size += key_size + value_size
+    logging.info(f"Total KV Cache Size: {total_size / (1024 * 1024):.2f} MB")
+    return total_size
+
+
+def get_kv_cache(input_dict : Dict[int, torch.Tensor]):
+    """
+    Get the KV cache of already generated text.
+    
+    Args:
+        input_dict - dictionary containing input id and attention masks tensors.
+
+    Returns - kv cache of the past values.
+    """
+    with torch.no_grad():
+        outputs = model(input_dict['input_ids'], use_cache=True)
+        kv_cache = outputs.past_key_values
+    
+    return kv_cache
+
+def measure_delta(query_text,  faiss_index):
+    """
+    Calculate the delta between the partial query embedding and 
+    the full query embedding.
+
+    Args: 
+        full_context_embedding : embedding of full context.
+        partial_query_embedding : embedding of partial_query_embedding
+    """
+    with open("./data/json_files/paul-graham-essays.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    full_query_embedding = np.array(get_embedding([query_text]), dtype=np.float32)  # Use model server functio
+    distances, full_indices = faiss_index.search(full_query_embedding, 5)
+    retrieved_embeddings = np.array([faiss_index.reconstruct(int(idx)) for idx in full_indices[0]])
+    retrieved_chunks = [data[i]["text"] for i in full_indices[0] if i < len(data)]
+
+    words = query_text.split()
+    query_to_k = {}
+
+    for i in range(len(words)):
+        partial_query = " ".join(words[: len(words) - i])
+        logging.info(f"Partial Query is {partial_query}")
+        partial_query_embedding = get_embedding(partial_query).reshape(1, -1)
+        logging.info(f"Partial Query embedding shape {partial_query_embedding.shape}")
+        distances, indices = faiss_index.search(partial_query_embedding, 5)
+
+
+        for j in range(1, 4000):
+            distances_cp, partial_index = faiss_index.search(partial_query_embedding, j)
+            partial_index = partial_index.flatten()
+            full_indices = full_indices.flatten()
+
+            # logging.info(f"Indices set: {set(full_indices)}")
+            # logging.info(f"Compare Index set: {set(partial_index)}")
+            # logging.info(f"Missing elements: {set(full_indices) - set(partial_index)}")
+            if set(full_indices).issubset(set(partial_index)):
+                query_to_k[partial_query] = j
+                break
+
 
 # ========== 4. MAIN DEMO ==========
 
+from itertools import chain
+from utils import load_pdf
 if __name__ == "__main__":
-    # 1) Decide whether to use HNSW or Flat L2
-    USE_HNSW = True  # Toggle True/False to try different indexes
+    pdf_to_text = load_pdf(pdf_path="./data/pdf_files/paul-graham-essays.pdf", 
+                            output_txt_path="./data/text_files/paul-graham-essays.txt")
 
-    # 2) Load or create indexes
-    data_dict = load_or_create_indices(use_hnsw=USE_HNSW)
-    ds_text = data_dict["text_dataset"]
-    text_index = data_dict["text_index"]
+    chunked_text = chunk_text(pdf_to_text, 
+                              chunk_size= 200, 
+                              document_name="paul-graham-essay",
+                              chunk_path="./data/json_files/paul-graham-essays.json")
+    
+    paul_g_index = build_embeddings(json_path="./data/json_files/paul-graham-essays.json", 
+                     index_path = config["paul_graham_index_path"])
 
     # 3) Prepare a DataFrame for logging
-    columns = ["dataset", "k_example", "embed_time", "search_time", "total_time", "use_hnsw", "query_text"]
+    columns = ["k_example", "embed_time", "search_time", "query_text"]
     log_df = pd.DataFrame(columns=columns)
 
     # 4) Example similarity searches
-    queries = ["What is AI?", "What is Python?", "Orange", "Machine Learning"]
-    k_values = [1, 10, 100]  # Different k-values to test
+    queries_qa = [
+    "What are the three qualities a field of work must have for someone to do great work in it?"
+    "Why does Graham say that ambitious people are often too conservative about choosing work?",
+    "What role does curiosity play in discovering new ideas and doing great work?",
+    "How does Graham describe the relationship between effort and interest in producing great work?",
+    "What does Graham mean by 'staying upwind,' and why is it a useful strategy?"
+]
+
+    k_values = [5]  # Different k-values to test
+    retrieved_dictionary = {}
+    model, tokenizer = load_model_tokenizer(model_path="meta-llama/Llama-3.1-8B-Instruct")
 
     for k_example in k_values:
-        print(f"\n=== Running similarity search with k={k_example} ===\n")
-        for query_text in queries:
-            # Perform similarity search
+        for query_text in queries_qa:
             log_df, retrieved_text = check_scores(
-                dataset=ds_text,
-                faiss_index=text_index,
+                faiss_index=paul_g_index,
                 k_example=k_example,  # Change k dynamically
                 query_text=query_text,
                 log_df=log_df,
-                use_hnsw=USE_HNSW,
-                dataset_name="text_dataset"
             )
+            #add retreved text 
+            measure_delta(query_text, faiss_index=paul_g_index)
+    
 
-            # Print retrieved passages
-            print(f"\n[TEXT DATASET] Query: {query_text} (k={k_example})")
-            for i, item in enumerate(retrieved_text, start=1):
-                print(f"  {i}. {item['passage']}")  # Print retrieved text
-
-    # 5) Save log to CSV
-    log_df.to_csv("similarity_search_timings.csv", index=False)
-    logging.info("Saved similarity search timings to similarity_search_timings.csv")
-
-    print("\n✅ Finished searching. Check 'similarity_search_timings.csv' for timing logs.")
