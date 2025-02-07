@@ -249,14 +249,16 @@ def get_kv_cache(input_dict : Dict[int, torch.Tensor]):
     
     return kv_cache
 
-def measure_delta(query_text,  faiss_index):
+def measure_retention(query_text,  faiss_index):
     """
-    Calculate the delta between the partial query embedding and 
-    the full query embedding.
+    Measure the number of index(chunks) retained by prefix of a query.
 
-    Args: 
-        full_context_embedding : embedding of full context.
-        partial_query_embedding : embedding of partial_query_embedding
+    Args:
+        query_text : the full query text 
+        faiss_index : index created for storing chunk embeddings
+    Returns : 
+        partial_query_retained_index : mapping of key(partial query) and number of retained indexes
+        (currently both )
     """
     with open("./data/json_files/paul-graham-essays.json", "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -267,7 +269,7 @@ def measure_delta(query_text,  faiss_index):
     retrieved_chunks = [data[i]["text"] for i in full_indices[0] if i < len(data)]
 
     words = query_text.split()
-    query_index_lookup = {}
+    partial_query_retained_index = {}
     for i in range(len(words)):
         partial_query = " ".join(words[: len(words) - i])
         logging.info(f"Partial Query is {partial_query}")
@@ -276,33 +278,31 @@ def measure_delta(query_text,  faiss_index):
         distances, partial_indices = faiss_index.search(partial_query_embedding, 5)
         missing_indexes = full_indices - partial_indices
         logging.info(f"Full : {full_indices} - Partial {partial_indices} = Missing indexes {missing_indexes}")
-        query_index_lookup[partial_query] = np.count_nonzero(missing_indexes == 0)
-    return query_index_lookup
+        partial_query_retained_index[partial_query] = np.count_nonzero(missing_indexes == 0)
+    return partial_query_retained_index
 
 def measure_rate(query_text, faiss_index):
     with open("./data/json_files/paul-graham-essays.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    full_query_embedding = np.array(get_embedding([query_text]), dtype=np.float32)
-    distances, full_indices = faiss_index.search(full_query_embedding, 5)
-    retreived_embeddings = np.array([faiss_index.reconstruct(int(idx)) for idx in full_indices[0]])
-
-    partial_query_to_retreived_prefixes = {}
+    query_embedding = np.array(get_embedding([query_text]), dtype=np.float32)
+    _ , query_indexes = faiss_index.search(query_embedding, 5)
+    retreived_embeddings = np.array([faiss_index.reconstruct(int(idx)) for idx in query_indexes[0]])
+    query_indexes.flatten()
+    prefix_query_to_retreived_indexes = {}
     words = query_text.split()
     for i in range(len(words)):
         partial_query = " ".join(words[: len(words) - i])
-        print(partial_query)
         partial_query_embedding = get_embedding(partial_query).reshape(1, -1)
-        full_indices.flatten()
-        for j in range(0,4000, 10):
-            distances_cp, partial_index = faiss_index.search(partial_query_embedding, j+5)
-            partial_index.flatten()
-            logging.info(f"Full : {full_indices} - Partial {partial_index} = Missing indexes {np.setdiff1d(full_indices, partial_index)}")
-            if np.all(np.isin(full_indices, partial_index)):
-                partial_query_to_retreived_prefixes[partial_query] = j+5
+        for j in range(0, 6000, 10):
+            _ , prefix_index = faiss_index.search(partial_query_embedding, j+5)
+            prefix_index.flatten()
+            logging.info(f"Query Indexes : {query_indexes} - Partial {prefix_index} = Missing indexes {np.setdiff1d(query_indexes, prefix_index)}")
+            if np.all(np.isin(query_indexes, prefix_index)):
+                prefix_query_to_retreived_indexes[partial_query] = j+5
                 break
     print("Hello World")
-    return partial_query_to_retreived_prefixes
+    return prefix_query_to_retreived_indexes
     # words = query_text.split()
     # for i in range(len(words)):
     #     partial_query = " ".join(words[: len(words) - 1])
@@ -322,6 +322,8 @@ def measure_rate(query_text, faiss_index):
 from itertools import chain
 from utils import load_pdf
 from utils import generate_retained_chunks_graph
+from data.queries import queries_list
+from utils import generate_match_rate
 if __name__ == "__main__":
     pdf_to_text = load_pdf(pdf_path="./data/pdf_files/paul-graham-essays.pdf", 
                             output_txt_path="./data/text_files/paul-graham-essays.txt")
@@ -334,38 +336,42 @@ if __name__ == "__main__":
     paul_g_index = build_embeddings(json_path="./data/json_files/paul-graham-essays.json", 
                      index_path = "./index_store/paul-graham-essays.faiss")
     
+    # complex_qa = queries_list.complex_pg
+    simple_qa = queries_list.simple_pg
+    
 
     # 3) Prepare a DataFrame for logging
     columns = ["k_example", "embed_time", "search_time", "query_text"]
     log_df = pd.DataFrame(columns=columns)
 
-    
 
     k_values = [5]  # Different k-values to test
     retrieved_dictionary = {}
     model, tokenizer = load_model_tokenizer(model_path="meta-llama/Llama-3.1-8B-Instruct")
 
     for k_example in k_values:
-        for query_text in queries_qa:
+        for query_text in simple_qa:
             log_df, retrieved_text = check_scores(
                 faiss_index=paul_g_index,
                 k_example=k_example,  # Change k dynamically
                 query_text=query_text,
                 log_df=log_df,
             )
-            #add retreved text 
-            query_index_map = measure_delta(query_text, faiss_index=paul_g_index)
-            #generate_graph_for_
+
+            query_index_map = measure_retention(query_text, faiss_index=paul_g_index)
+
             query_text_retained = next(iter(query_index_map))
-            generate_retained_chunks_graph(query_index_map=query_index_map, query_text=query_text_retained)
+            generate_retained_chunks_graph(query_index_map=query_index_map, query_text=query_text_retained, append_suffix = f"simple_qa")
 
             
     for k_example in k_values:
-        for query_text in queries_qa:
+        for query_text in simple_qa:
             query_to_required_prefixes = measure_rate(query_text=query_text, faiss_index=paul_g_index)
             print(query_to_required_prefixes)
-            query_to_required_prefixes = next(iter(query_to_required_prefixes))
-            # generate_match_rate(query_map = query_to_required_prefixes, faiss_index = paul_g_index)
+            query_text_match= next(iter(query_to_required_prefixes))
+            generate_match_rate(query_map = query_to_required_prefixes,
+                                append_suffix = "simple_match_rate"
+                                  )
 
 
             
