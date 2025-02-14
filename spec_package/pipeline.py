@@ -13,15 +13,23 @@ logging.basicConfig(
     filename="app.log",filemode="a",level=logging.INFO,format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# ---------- GLOBAL VARIABLES -----------
-config = ConfigManager.load_config("../configs/central.yaml") 
-
-
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import Document
 from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.core.schema import BaseNode
 import json 
+# ---------- GLOBAL VARIABLES -----------
+config = ConfigManager.load_config("../configs/central.yaml") 
+MODEL = SentenceTransformer("all-MiniLM-L6-v2")    
+
+
+def get_embedding(text : list):
+    """
+    List of sentences
+    Return embedding (can be used for both query and sentences(text from document))
+    """
+    embeddings = MODEL.encode(text)
+    return embeddings
 
 def chunk_text(text : str,
                chunk_size : int,
@@ -51,7 +59,7 @@ def chunk_text(text : str,
             token_lengths_list = [chunk["token_lengths"] for chunk in chunks_data]
         return token_lengths_list  # Return token lengths from the existing JSON
     document = Document(text = text)
-    splitter = SentenceSplitter(chunk_size=chunk_size)
+    splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=50)
     nodes = splitter.get_nodes_from_documents([document])
     chunks_data = []
     #convert to JSON friendly version
@@ -71,8 +79,6 @@ def chunk_text(text : str,
 
     return token_lengths_list
 
-from model_server import get_embedding, start_model_server
-start_model_server()
 def build_embeddings(json_path, index_path:str) :
     """
     Read a json file and build embeddings from its text file.
@@ -82,7 +88,6 @@ def build_embeddings(json_path, index_path:str) :
     """
     if os.path.exists(index_path):
         index = faiss.read_index(index_path)
-        print(f"Index exist. Contains {index.ntotal} total embeddings with dim {index.d}")
         return index
     if not os.path.exists(index_path):
         index = faiss.IndexFlatL2(config["embedding_dim"])
@@ -100,12 +105,13 @@ def build_embeddings(json_path, index_path:str) :
 
 # ========== 3. SIMILARITY SEARCH FUNCTION ==========
 
-def get_indices(
+def get_query_indices(
     faiss_index: faiss.Index,
     k_example: int,
     query_text : str):
     """
-    Perform a similarity search using the provided FAISS index and log execution times.
+    Get top 5 similar indexes(chunks) for query, from the embeddings created
+    before.
     
     :param faiss_index: A pre-built or loaded FAISS index
     :param k_example: Number of neighbors to retrieve
@@ -222,7 +228,7 @@ def measure_retained_indexes(query_text,  faiss_index, query_index):
         partial_query_retained_index[partial_query] = np.count_nonzero(missing_indexes == 0)
     return partial_query_retained_index
 
-def measure_rate(query_text, faiss_index):
+def measure_rate(query_text, faiss_index, query_index):
     """
     Return:
         prefix_query_to_retrieved_indexes : dict
@@ -233,13 +239,6 @@ def measure_rate(query_text, faiss_index):
                 - The retrieval time.
             Ensures that at least the required number of indexes are retrieved to include the top 5 results.
     """
-    with open("./data/json_files/paul-graham-essays.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    query_embedding = np.array(get_embedding([query_text]), dtype=np.float32)
-    _ , query_indexes = faiss_index.search(query_embedding, 5)
-    retreived_embeddings = np.array([faiss_index.reconstruct(int(idx)) for idx in query_indexes[0]])
-    query_indexes.flatten()
     words = query_text.split()
     prefix_query_to_retrieved_indexes = {}
 
@@ -247,13 +246,13 @@ def measure_rate(query_text, faiss_index):
         partial_query = " ".join(words[: len(words) - i])
         partial_query_embedding = get_embedding(partial_query).reshape(1, -1)
         start_time = time.time()
-        for j in range(0, 6000, 10):
+        for j in range(0, 60000, 10):
             _ , prefix_index = faiss_index.search(partial_query_embedding, j+5)
             prefix_index.flatten()
-            logging.info(f"Query Indexes : {query_indexes} - Partial {prefix_index} = Missing indexes {np.setdiff1d(query_indexes, prefix_index)}")
-            if np.all(np.isin(query_indexes, prefix_index)):
+            # logging.info(f"Query Indexes : {query_index} - Partial {prefix_index} = Missing indexes {np.setdiff1d(query_index, prefix_index)}")
+            if np.all(np.isin(query_index, prefix_index)):
                 prefix_query_to_retrieved_indexes[partial_query] = [j+5]
-                retrieval_time = start_time - time.time()
+                retrieval_time = time.time() - start_time
                 prefix_query_to_retrieved_indexes.setdefault(partial_query, []).append(retrieval_time)
                 break
 
@@ -279,73 +278,74 @@ def measure_typing_time(query_text, tokenizer,  one_word_time=0.66):
         prefix_time[prefix_query] = (i + 1) * one_word_time
     return prefix_time
 
-# ========== 4. MAIN DEMO ==========
+#TODO - remove main demo after copying code to run_pipeline.
+# # ========== 4. MAIN DEMO ==========
 
-from itertools import chain
-from utils import load_pdf
-from utils import generate_retained_chunks_graph
-from data.queries import queries_list
-from utils import generate_match_rate
-from utils import generate_match_rate_words
-from utils import plot_token_length_distribution
-from utils import plot_typing_time
+# from itertools import chain
+# from utils import load_pdf
+# from utils import generate_retained_chunks_graph
+# from data.queries import queries_list
+# from utils import generate_match_rate
+# from utils import generate_match_rate_words
+# from utils import plot_token_length_distribution
+# from utils import plot_typing_time
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    model, tokenizer = load_model_tokenizer(model_path="meta-llama/Llama-3.1-8B-Instruct")
-    pdf_to_text = load_pdf(pdf_path="./data/pdf_files/paul-graham-essays.pdf", 
-                            output_txt_path="./data/text_files/paul-graham-essays.txt")
+#     model, tokenizer = load_model_tokenizer(model_path="meta-llama/Llama-3.1-8B-Instruct")
+#     pdf_to_text = load_pdf(pdf_path="./data/pdf_files/paul-graham-essays.pdf", 
+#                             output_txt_path="./data/text_files/paul-graham-essays.txt")
 
-    token_length_list = chunk_text(pdf_to_text, 
-                chunk_size= 200, 
-                document_name="paul-graham-essay",
-                chunk_save_path="./data/json_files/",
-                tokenizer=tokenizer
-                )
-    plot_token_length_distribution(token_length_list=token_length_list, 
-                                   append_suffix="distribution",
-                                   )
-    #get the distribution of lengths
+#     token_length_list = chunk_text(pdf_to_text, 
+#                 chunk_size= 200, 
+#                 document_name="paul-graham-essay",
+#                 chunk_save_path="./data/json_files/",
+#                 tokenizer=tokenizer
+#                 )
+#     plot_token_length_distribution(token_length_list=token_length_list, 
+#                                    append_suffix="distribution",
+#                                    )
+#     #get the distribution of lengths
     
-    paul_g_index = build_embeddings(json_path="./data/json_files/paul-graham-essays.json", 
-                     index_path = "./index_store/paul-graham-essays.faiss")
+#     paul_g_index = build_embeddings(json_path="./data/json_files/paul-graham-essays.json", 
+#                      index_path = "./index_store/paul-graham-essays.faiss")
     
-    complex_qa_20 = queries_list.complex_pg_20
-    simple_qa = queries_list.simple_pg
-    complex_qa_50 = queries_list.complex_pg_50
+#     complex_qa_20 = queries_list.complex_pg_20
+#     simple_qa = queries_list.simple_pg
+#     complex_qa_50 = queries_list.complex_pg_50
     
 
-    # 3) Prepare a DataFrame for logging
-    columns = ["k_example", "embed_time", "search_time", "query_text", "retrival_time"]
-    log_df = pd.DataFrame(columns=columns)
+#     # 3) Prepare a DataFrame for logging
+#     columns = ["k_example", "embed_time", "search_time", "query_text", "retrival_time"]
+#     log_df = pd.DataFrame(columns=columns)
 
-    k_values = [5]  # Different k-values to test
-    retrieved_dictionary = {}
-    for k_example in k_values:
-        for query_text in complex_qa_20:
-            log_df, retrieved_text = get_indices(
-                faiss_index=paul_g_index,
-                k_example=k_example,  # Change k dynamically
-                query_text=query_text,
-                log_df=log_df,
-            )
+#     k_values = [5]  # Different k-values to test
+#     retrieved_dictionary = {}
+#     for k_example in k_values:
+#         for query_text in complex_qa_20:
+#             log_df, retrieved_text = get_indices(
+#                 faiss_index=paul_g_index,
+#                 k_example=k_example,  # Change k dynamically
+#                 query_text=query_text,
+#                 log_df=log_df,
+#             )
 
-            query_index_map = measure_retention(query_text, faiss_index=paul_g_index)
+#             query_index_map = measure_retention(query_text, faiss_index=paul_g_index)
 
-            query_text_retained = next(iter(query_index_map))
-            generate_retained_chunks_graph(query_index_map=query_index_map, query_text=query_text_retained, append_suffix = f"simple_qa")
+#             query_text_retained = next(iter(query_index_map))
+#             generate_retained_chunks_graph(query_index_map=query_index_map, query_text=query_text_retained, append_suffix = f"simple_qa")
 
             
-    for k_example in k_values:
-        for query_text in complex_qa_20:
-            query_to_required_prefixes = measure_rate(query_text=query_text, faiss_index=paul_g_index)
-            query_text_match= next(iter(query_to_required_prefixes))
-            generate_match_rate(query_map = query_to_required_prefixes,
-                                append_suffix = "complex_match_rate")
-            generate_match_rate_words(query_map=query_to_required_prefixes,
-                                      append_suffix="complex_match_rate_words")
+#     for k_example in k_values:
+#         for query_text in complex_qa_20:
+#             query_to_required_prefixes = measure_rate(query_text=query_text, faiss_index=paul_g_index)
+#             query_text_match= next(iter(query_to_required_prefixes))
+#             generate_match_rate(query_map = query_to_required_prefixes,
+#                                 append_suffix = "complex_match_rate")
+#             generate_match_rate_words(query_map=query_to_required_prefixes,
+#                                       append_suffix="complex_match_rate_words")
 
-    for query_text in complex_qa_50:
-        prefix_time_dictionary = measure_typing_time(query_text=query_text, tokenizer=tokenizer)
-        plot_typing_time(prefix_time_dictionary, append_suffix = "typing")
+#     for query_text in complex_qa_50:
+#         prefix_time_dictionary = measure_typing_time(query_text=query_text, tokenizer=tokenizer)
+#         plot_typing_time(prefix_time_dictionary, append_suffix = "typing")
 
