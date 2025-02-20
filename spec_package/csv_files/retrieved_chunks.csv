@@ -1,4 +1,4 @@
-query_text,retrieved_chunk_1,retrieved_chunk_2,retrieved_chunk_3,retrieved_chunk_4,retrieved_chunk_5,retrieved_chunk_6,retrieved_chunk_7,retrieved_chunk_8,retrieved_chunk_9,retrieved_chunk_10
+query_text,retrieved_chunk_1,retrieved_chunk_2,retrieved_chunk_3,retrieved_chunk_4,retrieved_chunk_5,retrieved_chunk_6,retrieved_chunk_7,retrieved_chunk_8,retrieved_chunk_9,retrieved_chunk_10,min_required_chunks
 "What is some of the major topics Paul Graham discusses in his essays about startups, programming, and wealth creation?","And once you apply that kind of 
 brain power to petty but profitable questions, you can create wealth very rapidly .
 That's the essence of a startup: having brilliant people do work that's beneath them. Big 
@@ -101,7 +101,7 @@ these conclusions do you actually believe? One of the artifacts of the way schoo
 organized is that we all get trained to talk even when we have nothing to say . If you have a ten 
 page paper due, then ten pages you must write, even if you only have one page of ideas. Even 
 if you have no ideas. Y ou have to produce something. And all too many startups go into 
-fundraising in the same spirit."
+fundraising in the same spirit.",0
 "What is the main argument that Paul Graham presents in his essay 'Hackers & Painters,' and how does he support his viewpoint?","Hackers and Painters - # 23
 May 2003
 (This essay is derived from a guest lecture at Harvard, which incorporated an earlier talk at 
@@ -196,7 +196,7 @@ T o write good software you must simultaneously keep two opposing ideas in your 
 need the young hacker's naive faith in his abilities, and at the same time the veteran's 
 skepticism. Y ou have to be able to think how hard can it be? with one half of your brain while 
 thinking it will never work with the other.
-The trick is to realize that there's no real contradiction here."
+The trick is to realize that there's no real contradiction here.",0
 "Which essay by Paul Graham explains why writing is an important skill for programmers, and what reasons does he provide for this claim?","And paying attention is more 
 important to reliability than moving slowly . Because he pays close attention, a Navy pilot can 
 land a 40,000 lb. aircraft at 140 miles per hour on a pitching carrier deck, at night, more safely 
@@ -295,7 +295,7 @@ Source code, too, should explain itself. If I could get people to remember just 
 programming, it would be the one at the beginning of Structure and Interpretation of Computer 
 Programs. Programs should be written for people to read, and only incidentally for machines to 
 execute. Y ou need to have empathy not just for your users, but for your readers. It's in your 
-interest, because you'll be one of them."
+interest, because you'll be one of them.",0
 "What is the central idea behind the essay 'Maker’s Schedule, Manager’s Schedule,' and how does it describe differences in work styles?","Thanks to Jessica Livingston for reading drafts of this.
 Maker-s Schedule- Manager-s Schedule  - # 114
  --> ""...the mere consciousness of an engagement will sometimes worry a whole day .""
@@ -390,7 +390,7 @@ at the center, surrounded by easier stuff at the edges. Working hard means aimin
 center to the extent you can. Some days you may not be able to; some days you'll only be able 
 to work on the easier, peripheral stuff. But you should always be aiming as close to the center 
 as you can without stalling.
-The bigger question of what to do with your life is one of these problems with a hard core."
+The bigger question of what to do with your life is one of these problems with a hard core.",0
 "How does Paul Graham define the concept of 'schlep blindness' in the context of startups, and why is it significant for entrepreneurs?","(This is also true of starting a startup generally .)
 How do you overcome schlep blindness? Frankly , the most valuable antidote to schlep 
 blindness is probably ignorance. Most successful founders would probably say that if they'd 
@@ -484,7 +484,7 @@ the bills too, even though you don't need to. I think this is what drives a lot 
 entrepreneurs, actually .
 That's why I love working on Y Combinator so much. It's an excuse to work on something 
 interesting with people I like.
-11."
+11.",0
 "According to Paul Graham, what are the fundamental reasons that explain why most successful startups emerge from Silicon Valley instead of other locations?","And yet whatever argument you use to prove that 
 startups don't need to move from London to Silicon Valley could equally well be used to prove 
 startups don't need to move from smaller towns to London.
@@ -590,7 +590,7 @@ specializes in movies, or New Y ork in finance. [1]
 What if both are true? What if startups are both a new economic phase and also a type of 
 business that only flourishes in certain centers?
 If so, this revolution is going to be particularly revolutionary . All previous revolutions have 
-spread."
+spread.",0
 "What does Paul Graham mean when he discusses the importance of 'determination' in startup success, and how does he illustrate this point?","Notes:
 [1] Stiglitz, Joseph. The Price of Inequality . Norton, 2012. p. 32.
 [2] Particularly since economic inequality is a matter of outliers, and outliers are disproportionately likely to have 
@@ -683,7 +683,7 @@ school. So we're in much the same position as a graduate program, or a company h
 right out of college. Except our choices are immediately and visibly tested. There are two 
 possible outcomes for a startup: success or failure—and usually you know within a year which it 
 will be.
-The test applied to a startup is among the purest of real world tests."
+The test applied to a startup is among the purest of real world tests.",0
 "Which essay written by Paul Graham outlines the eighteen mistakes that can lead to startup failures, and what are some of those mistakes?","The 18 Mistakes That Kill Startups - # 68
  Want to start a startup? Get funded by Y Combinator. 
  October 2006
@@ -784,7 +784,7 @@ didn't stay long, but he wouldn't have returned at all if he'd realized Microsof
 even a fraction of the size it turned out to be. [4]
 The question to ask about an early stage startup is not ""is this company taking over the world?"" 
 but ""how big could this company get if the founders did the right things?"" And the right things 
-often seem both laborious and inconsequential at the time."
+often seem both laborious and inconsequential at the time.",0
 "What are the primary characteristics Paul Graham associates with successful startup founders, and how does he distinguish them from average entrepreneurs?","I grew up with a cartoon idea of a very successful businessman (in the cartoon it was always a 
 man): a rapacious, cigar-smoking, table-thumping guy in his fifties who wins by exercising 
 power, and isn't too fussy about how. As I've written before, one of the things that has surprised 
@@ -881,7 +881,7 @@ The importance of stamina shouldn't be surprising. If you've heard anything abou
 you've probably heard about the long hours. As far as I can tell these are universal. I can't think 
 of any successful startups whose founders worked 9 to 5. And it's particularly necessary for 
 younger founders to work long hours because they're probably not as efficient as they'll be later.
-Y our second advantage, poverty , might not sound like an advantage, but it is a huge one."
+Y our second advantage, poverty , might not sound like an advantage, but it is a huge one.",0
 "How does Paul Graham differentiate between the concepts of being rich and being wealthy, and why does he believe this distinction matters?","Getting rich means you can stop treading water.
 Someone who gets this will work much harder at making a startup succeed—with the proverbial 
 energy of a drowning man, in fact. But understanding the relationship between money and work 
@@ -974,7 +974,7 @@ If the rich people in a society got that way by taking wealth from the poor, the
 degenerate case of economic inequality , where the cause of poverty is the same as the cause 
 of wealth. But instances of inequality don't have to be instances of the degenerate case. If one 
 woodworker makes 5 chairs and another makes none, the second woodworker will have less 
-money , but not because anyone took anything from him."
+money , but not because anyone took anything from him.",0
 "How does Paul Graham compare the work of hackers to painters, and what similarities does he highlight between programming and creative arts?","Hackers and Painters - # 23
 May 2003
 (This essay is derived from a guest lecture at Harvard, which incorporated an earlier talk at 
@@ -1070,7 +1070,7 @@ parts. It was common for the master to paint the principal figures and for assis
 others and the background. But you never had one guy painting over the work of another.
 I think this is the right model for collaboration in software too. Don't push it too far. When a piece 
 of code is being hacked by three or four different people, no one of whom really owns it, it will 
-end up being like a common-room."
+end up being like a common-room.",0
 "What is Paul Graham’s reasoning for advising startups to focus on growth rather than early revenue, and what examples does he use to support this?","Fundamentally that's how the most successful startups view fundraising. 
 They could grow the company on its own revenues, but the extra money and help supplied by 
 VCs will let them grow even faster. Raising money lets you choose your growth rate.
@@ -1162,7 +1162,7 @@ So I would explain that what makes a startup promising, not just in the eyes of 
 fact, is growth. Ideally in revenue, but failing that in usage. What they needed to do was get lots 
 of users.
 How does one get lots of users? They had all kinds of ideas about that. They needed to do a 
-big launch that would get them ""exposure."" They needed influential people to talk about them."
+big launch that would get them ""exposure."" They needed influential people to talk about them.",0
 "How does Paul Graham describe the significance of 'taste' in evaluating good startup ideas, and what role does intuition play in his framework?","We've now watched the trajectories of so many 
 startups that we're getting better at predicting them. And when we're talking about startups we 
 think are likely to succeed, what we find ourselves saying is things like ""Oh, those guys can 
@@ -1265,7 +1265,7 @@ something people want? Unfortunately not. I think new theorems are a fine thing 
 there is no great demand for them. Whereas there appears to be great demand for celebrity 
 gossip magazines. Wealth is defined democratically . Good ideas and valuable ideas are not 
 quite the same thing; the difference is individual tastes.
-But valuable ideas are very close to good ideas, especially in technology ."
+But valuable ideas are very close to good ideas, especially in technology .",0
 "Why does Paul Graham emphasize the concept of 'doing things that don’t scale,' and how does this strategy contribute to the success of early startups?","Thanks to Marc Andreessen, Sam Altman, Patrick Collison, Ron Conway , Chris Dixon, Alfred Lin, Ben Horowitz, 
 Steve Huffman, Jessica Livingston, Greg Mcadoo, Andrew Mason, Geoff Ralston, Y uri Sagalov, Emmett Shear, Rajat 
 Suri, Garry T an, Albert Wenger, Fred Wilson, and Qasar Y ounis for reading drafts of this.
@@ -1361,7 +1361,7 @@ to work instead on problems of the most immediate and mundane sort. Think Einste
 designing refrigerators. [7]
 If you want to learn what people want, read Dale Carnegie's How to Win Friends and Influence 
 People. [8] When a friend recommended this book, I couldn't believe he was serious. But he 
-insisted it was good, so I read it, and he was right."
+insisted it was good, so I read it, and he was right.",0
 "How does Paul Graham explain the role of network effects in startup success, and what examples does he provide to illustrate its impact?","Getting work makes him a successful actor, but he doesn't only become an 
 actor when he's successful.
 So the real question is not what growth rate makes a company a startup, but what growth rate 
@@ -1454,7 +1454,7 @@ you talked to the Airbnbs, they took notes. If you suggested an idea to them in 
 next time you talked to them they'd not only have implemented it, but also implemented two new 
 ideas they had in the process. ""They probably have the best attitude of any startup we've 
 funded"" I wrote to Mike Arrington during the batch.
-They're still like that."
+They're still like that.",0
 What arguments does Paul Graham present in support of the idea that economic inequality can sometimes be beneficial for technological and economic growth?,"If you want to understand economic inequality — and more importantly , if you actually want to 
 fix the bad aspects of it — you have to tease apart the components. And yet the trend in nearly 
 everything written about the subject is to do the opposite: to squash together all the aspects of 
@@ -1556,7 +1556,7 @@ the ball is in your court to explain how. (If you can come up with a remotely pl
 can make a fortune writing business books and consulting for large companies.) [5]
 Ok, so we get slower growth. Is that so bad? Well, one reason it's bad in practice is that other 
 countries might not agree to slow down with us. If you're content to develop new technologies at 
-a slower rate than the rest of the world, what happens is that you don't invent anything at all."
+a slower rate than the rest of the world, what happens is that you don't invent anything at all.",0
 "What is Paul Graham’s perspective on the influence of luck in startup success, and does he consider it a minor or major determining factor?","When we started our startup, I 
 had bought the hype of the startup founder dream: that this is a game of skill. It is, in some 
 ways. Having skill is valuable. So is being determined as all hell. But being lucky is the critical 
@@ -1651,7 +1651,7 @@ me most about startups is how few of the most successful founders are like that.
 successful people in other industries are; I don't know; but not startup founders. [1]
 I knew this empirically , but I never saw the math of why till I got this founder's email. In it he said 
 he worried that he was fundamentally soft-hearted and tended to give away too much for free. 
-He thought perhaps he needed ""a little dose of sociopath-ness."""
+He thought perhaps he needed ""a little dose of sociopath-ness.""",0
 "How does Paul Graham define the process of identifying startup ideas, and what criteria does he propose for distinguishing good ideas from bad ones?","So the most successful founders tend to work on ideas that few beside them realize are 
 good. Which is not that far from a description of insanity , till you reach the point where you see 
 results.
@@ -1748,7 +1748,7 @@ be? Y ou'll see when you try it. It follows from the nature of angel investing t
 hard. Y ou have to guess early , at the stage when the most promising ideas still seem 
 counterintuitive, because if they were obviously good, VCs would already have funded them.
 Suppose it's 1998. Y ou come across a startup founded by a couple grad students. They say 
-they're going to work on Internet search."
+they're going to work on Internet search.",0
 "What are the key takeaways from Paul Graham’s essay on wealth creation, and how does he explain the relationship between startups and economic progress?","And once you apply that kind of 
 brain power to petty but profitable questions, you can create wealth very rapidly .
 That's the essence of a startup: having brilliant people do work that's beneath them. Big 
@@ -1844,7 +1844,7 @@ people who wanted to get rich would all start startups. And that might be a grea
 don't think it would have much effect on the distribution of wealth. People who want to get rich 
 will do whatever they have to. If startups are the only way to do it, you'll just get far more people 
 starting startups. (If you write the laws very carefully , that is. More likely , you'll just get a lot of 
-people doing things that can be made to look on paper like startups.)"
+people doing things that can be made to look on paper like startups.)",0
 "What are some of the counterintuitive lessons Paul Graham provides about fundraising, and why does he believe certain funding strategies are more effective?","Don't listen to them.
 Don't make things complicated.
 I realize it may seem odd to sum up this huge treatise by saying that my overall advice is not to 
@@ -1941,7 +1941,7 @@ Y ou will be in a much stronger position if your collection of plans includes on
 dollars — i.e. if you can make it to profitability without raising any additional money . Ideally you 
 want to be able to say to investors ""We'll succeed no matter what, but raising money will help us 
 do it faster.""
-There are many analogies between fundraising and dating, and this is one of the strongest."
+There are many analogies between fundraising and dating, and this is one of the strongest.",0
 "If you were launching a startup today, how would you apply Paul Graham’s concept of 'doing things that don’t scale' to acquire your first customers?","Thanks to Marc Andreessen, Sam Altman, Patrick Collison, Ron Conway , Chris Dixon, Alfred Lin, Ben Horowitz, 
 Steve Huffman, Jessica Livingston, Greg Mcadoo, Andrew Mason, Geoff Ralston, Y uri Sagalov, Emmett Shear, Rajat 
 Suri, Garry T an, Albert Wenger, Fred Wilson, and Qasar Y ounis for reading drafts of this.
@@ -2033,7 +2033,7 @@ like what you've built, but there will be other things they would like that woul
 implement. It's not till you start the conversation by launching the wrong thing that they can 
 express (or perhaps even realize) what they're looking for.
 10. Change Y our Idea
-T o benefit from engaging with users you have to be willing to change your idea."
+T o benefit from engaging with users you have to be willing to change your idea.",0
 "How could you incorporate Paul Graham’s 'Maker’s Schedule, Manager’s Schedule' framework into your daily routine to improve productivity and avoid unnecessary interruptions?","Thanks to Jessica Livingston for reading drafts of this.
 Maker-s Schedule- Manager-s Schedule  - # 114
  --> ""...the mere consciousness of an engagement will sometimes worry a whole day .""
@@ -2132,7 +2132,7 @@ obstacle that you avoid like you might avoid a rock in the road. Distraction see
 Chesterfield described dirt as matter out of place. Distracting is, similarly , desirable at the wrong 
 time. And technology is continually being refined to produce more and more desirable things. 
 Which means that as we learn to avoid one class of distractions, new ones constantly appear, 
-like drug-resistant bacteria."
+like drug-resistant bacteria.",0
 "What steps would you take to implement Paul Graham’s insights on startup idea generation in your own entrepreneurial journey, and how would you evaluate your ideas?","Starting startups is not one of them. The stick-
 to-your-vision approach works for something like winning an Olympic gold medal, where the 
 problem is well-defined. Startups are more like science, where you need to follow the trail 
@@ -2233,7 +2233,7 @@ mere determination, without flexibility , is a greedy algorithm that may get you
 a mediocre local maximum: When someone is determined, there's still a danger that they'll 
 follow a long, hard path that ultimately leads nowhere. Y ou want to push forward, but at the 
 same time twist and turn to find the most promising path. One founder put it very succinctly: 
-Fast iteration is the key to success."
+Fast iteration is the key to success.",0
 "If you were mentoring a new entrepreneur, how would you explain the dangers of 'schlep blindness,' and what strategies would you suggest to avoid it?","(This is also true of starting a startup generally .)
 How do you overcome schlep blindness? Frankly , the most valuable antidote to schlep 
 blindness is probably ignorance. Most successful founders would probably say that if they'd 
@@ -2328,7 +2328,7 @@ face that. Y ou can only avoid competition by avoiding good ideas.
 I think this shrinking from big problems is mostly unconscious. It's not that people think of grand 
 ideas but decide to pursue smaller ones because they seem safer. Y our unconscious won't 
 even let you think of grand ideas. So the solution may be to think about ideas without involving 
-yourself. What would be a great idea for someone else to do as a startup?"
+yourself. What would be a great idea for someone else to do as a startup?",0
 How could an academic researcher apply Paul Graham’s ideas about iteration and rapid prototyping to improve the impact and success of their projects?,"Y ou can't answer that; 
 if you could, you'd have made it.
 The way to get a big idea to appear in your head is not to hunt for big ideas, but to put in a lot of 
@@ -2424,7 +2424,7 @@ don't seem as impressive as complex ones. Overlooked problems are by definition 
 that most people think don't matter. Delivering solutions in an informal way means that instead 
 of judging something by the way it's presented, people have to actually understand it, which is 
 more work. And starting with a crude version 1 means your initial effort is always small and 
-incomplete."
+incomplete.",0
 "What key lessons from Paul Graham’s essays could be applied to managing a team effectively in a fast-paced, high-growth startup environment?","Thanks to Chris Anderson, T revor Blackwell, Marc Hedlund, Jessica Livingston, Robert Morris, Greg Mcadoo, Fred 
 Wilson, and Stephen Wolfram for reading drafts of this, and to Ed Dumbill for inviting me to speak.
 (The second part of this talk became Why Startups Condense in America.)
@@ -2522,7 +2522,7 @@ In fact, I worry it's not merely unnecessary to learn in great detail about the 
 startups, but possibly somewhat dangerous. If I met an undergrad who knew all about 
 convertible notes and employee agreements and (God forbid) class FF stock, I wouldn't think 
 ""here is someone who is way ahead of their peers."" It would set off alarms. Because another of 
-the characteristic mistakes of young founders is to go through the motions of starting a startup."
+the characteristic mistakes of young founders is to go through the motions of starting a startup.",0
 "If you were designing a startup incubator program, which specific principles from Paul Graham’s essays would you include, and how would they shape the program?","Incubators were conspicuous failures during the Bubble. There's still debate about whether this 
 was because of the Bubble, or because they're a bad idea. My vote is they're a bad idea. I think 
 they fail because they select for the wrong people. When we were starting a startup, we would 
@@ -2619,7 +2619,7 @@ intended for college students, but much of it is applicable to potential founder
 One of the advantages of having kids is that when you have to give advice, you can ask 
 yourself ""what would I tell my own kids?"" My kids are little, but I can imagine what I'd tell them 
 about startups if they were in college, and that's what I'm going to tell you.
-Startups are very counterintuitive. I'm not sure why ."
+Startups are very counterintuitive. I'm not sure why .",0
 How would you use Paul Graham’s principles on writing clearly and persuasively to improve your ability to communicate complex technical or business concepts?,"For example, you can't expect an idea to be novel to 
 everyone. Any insight that you have will probably have already been had by at least one of the 
 world's 7 billion people. But it's sufficient if an idea is novel to a lot of readers.
@@ -2716,7 +2716,7 @@ There's a trick for getting importance too. It's like the trick I suggest to you
 getting startup ideas: to make something you yourself want. Y ou can use yourself as a proxy for 
 the reader. The reader is not completely unlike you, so if you write about topics that seem 
 important to you, they'll probably seem important to a significant number of readers as well.
-Importance has two factors."
+Importance has two factors.",0
 What strategies from Paul Graham’s essay on procrastination could be applied to improve personal time management and increase efficiency in creative work?,"I'm trying other strategies now, but I 
 think this time I'll wait till I'm sure they work before writing about them.
 May 2008
@@ -2812,7 +2812,7 @@ procrastination are those that seem like work, the danger of responsibilities is
 can consume a whole day , but that they can do it without setting off the kind of alarms you'd set 
 off if you spent a whole day sitting on a park bench.
 A lot of the pain of being an outsider is being aware of one's own procrastination. But this is 
-actually a good thing."
+actually a good thing.",0
 "If you were tasked with restructuring a corporate work environment, how would you balance the differences between a maker’s schedule and a manager’s schedule?","We just took it 
 for granted that we had to either blow our schedules or offend people. But now that I've realized 
 what's going on, perhaps there's a third option: to write something explaining the two types of 
@@ -2908,7 +2908,7 @@ AM, they don't usually have to do anything very complicated. With Web-based appl
 these two kinds of stress get combined. The programmers become system administrators, but 
 without the sharply defined limits that ordinarily make the job bearable.
 At Viaweb we spent the first six months just writing software. We worked the usual long hours of 
-an early startup."
+an early startup.",0
 "Do you agree with Paul Graham’s assertion that startups should prioritize rapid growth over early revenue, or do you believe this approach has significant risks?","It sounds benevolent to say we ought to reduce economic inequality . When you phrase it that 
 way , who can argue with you? Inequality has to be bad, right? It sounds a good deal less 
 benevolent to say we ought to reduce the rate at which new companies are founded. And yet 
@@ -3000,7 +3000,7 @@ of users and the other is how much you improve their lives. [2] The second dimen
 you have most control over. And indeed, the growth in the first will be driven by how well you do 
 in the second. As in science, the hard part is not answering questions but asking them: the hard 
 part is seeing something new that users lack. The better you understand them the better the 
-odds of doing that."
+odds of doing that.",0
 "What are the potential risks or drawbacks of following Paul Graham’s fundraising advice too rigidly, and how might different industries require unique approaches?","Don't listen to them.
 Don't make things complicated.
 I realize it may seem odd to sum up this huge treatise by saying that my overall advice is not to 
@@ -3095,7 +3095,7 @@ to make, and also to judge your ambition, reasonableness, and how far you are al
 fundraising.
 If you're a wizard at fundraising, you can say ""We plan to raise a $7 million series A round, and 
 we'll be accepting termsheets next tuesday ."" I've known a handful of founders who could pull 
-that off without having VCs laugh in their faces."
+that off without having VCs laugh in their faces.",0
 "Does Paul Graham’s startup philosophy apply equally well outside of Silicon Valley, or is it too dependent on the venture capital ecosystem in that region?","And yet whatever argument you use to prove that 
 startups don't need to move from London to Silicon Valley could equally well be used to prove 
 startups don't need to move from smaller towns to London.
@@ -3199,7 +3199,7 @@ people would agree was absurdum. Few would be willing to claim that it doesn't m
 where a startup is—that a startup operating out of a small agricultural town wouldn't benefit 
 from moving to a startup hub. Most people could see how it might be helpful to be in a place 
 where there was infrastructure for startups, accumulated knowledge about how to make them 
-work, and other people trying to do it."
+work, and other people trying to do it.",0
 "What counterarguments exist against Paul Graham’s views on economic inequality, and do you think he sufficiently addresses concerns about its negative effects?","If you want to understand economic inequality — and more importantly , if you actually want to 
 fix the bad aspects of it — you have to tease apart the components. And yet the trend in nearly 
 everything written about the subject is to do the opposite: to squash together all the aspects of 
@@ -3299,7 +3299,7 @@ If all you have is statistics, it seems like that's what you need to fix. But be
 statistical measure like economic inequality there are some things that are good and some that 
 are bad, some that are historical trends with immense momentum and others that are random 
 accidents. If we want to fix the world behind the statistics, we have to understand it, and focus 
-our efforts where they'll do the most good."
+our efforts where they'll do the most good.",0
 "How realistic is Paul Graham’s claim that anyone can come up with a good startup idea, and what additional factors might influence the success of an idea?","I think this is often the case. I think people believe that coming up with ideas for startups is very 
 hard-- that it must be very hard-- and so they don't try do to it. They assume ideas are like 
 miracles: they either pop into your head or they don't.
@@ -3392,7 +3392,7 @@ something people want? Unfortunately not. I think new theorems are a fine thing 
 there is no great demand for them. Whereas there appears to be great demand for celebrity 
 gossip magazines. Wealth is defined democratically . Good ideas and valuable ideas are not 
 quite the same thing; the difference is individual tastes.
-But valuable ideas are very close to good ideas, especially in technology ."
+But valuable ideas are very close to good ideas, especially in technology .",0
 Does Paul Graham sufficiently acknowledge the role of external factors like economic downturns or regulatory challenges in determining startup success or failure?,"Thanks to Chris Anderson, T revor Blackwell, Marc Hedlund, Jessica Livingston, Robert Morris, Greg Mcadoo, Fred 
 Wilson, and Stephen Wolfram for reading drafts of this, and to Ed Dumbill for inviting me to speak.
 (The second part of this talk became Why Startups Condense in America.)
@@ -3490,7 +3490,7 @@ threats to a startup, managing them is one of the most important skills founders
 Let's start by talking about the five sources of startup funding. Then we'll trace the life of a 
 hypothetical (very fortunate) startup as it shifts gears through successive rounds.
 Friends and Family
-A lot of startups get their first funding from friends and family ."
+A lot of startups get their first funding from friends and family .",0
 "Are there potential downsides to strictly following the 'Maker’s Schedule' approach, and could it create inefficiencies or conflicts in certain work environments?","Thanks to Jessica Livingston for reading drafts of this.
 Maker-s Schedule- Manager-s Schedule  - # 114
  --> ""...the mere consciousness of an engagement will sometimes worry a whole day .""
@@ -3583,7 +3583,7 @@ In fact, it may not be a difference in degree, but a difference in kind. There m
 that can only be done in long, uninterrupted stretches, when inspiration hits, rather than dutifully 
 in scheduled little slices. Empirically it seems to be so. When I think of the people I know who've 
 done great things, I don't imagine them dutifully crossing items off to-do lists. I imagine them 
-sneaking off to work on some new idea."
+sneaking off to work on some new idea.",0
 "What contradictions, if any, exist in Paul Graham’s startup philosophy, and do you think his advice remains consistently applicable in different industries?","Now he's cofounder of a startup called Friendfeed. It's only a year old, but already everyone in 
 the Valley is watching them. Someone responsible for three of the biggest ideas at Google is 
 going to come up with more.
@@ -3674,7 +3674,7 @@ King of ASES for inviting me to speak.
  Comment on this essay .
 T wo Kinds of Judgement - # 74
 April 2007
-There are two different ways people judge you."
+There are two different ways people judge you.",0
 "What aspects of Paul Graham’s advice might become outdated in the future, given the rapid evolution of technology, markets, and business models?","Maybe it would be worth starting one that did.
 [3] There need to be some number of big companies to acquire the startups, so the number of big companies 
 couldn't decrease to zero.
@@ -3768,7 +3768,7 @@ insights. Google was that type of idea too. The search engines that preceded the
 from the most radical implications of what they were doing — particularly that the better a job 
 they did, the faster users would leave.
 A crowded market is actually a good sign, because it means both that there's demand and that 
-none of the existing solutions are good enough."
+none of the existing solutions are good enough.",0
 Could Paul Graham’s emphasis on rapid early growth contribute to an unhealthy startup culture that prioritizes short-term success over long-term sustainability?,"The 
 banks now had to find someone else to lend to, so they made more margin loans.
 [15] Even now it's hard to get them to. One of the things I find hardest to get into the heads of would-be startup 
@@ -3865,7 +3865,7 @@ but kills off the most promising ones especially . Startups yield faster growth 
 established companies. Does this trend also hold among startups? That is, are the riskiest 
 startups the ones that generate most growth if they succeed? I suspect the answer is yes. And 
 that's a chilling thought, because it means that if you cut investors' appetite for risk, the most 
-beneficial startups are the first to go."
+beneficial startups are the first to go.",0
 "How does Paul Graham’s philosophy on startups compare to traditional business theories that emphasize stability, long-term planning, and revenue sustainability?","Thanks to Chris Anderson, T revor Blackwell, Marc Hedlund, Jessica Livingston, Robert Morris, Greg Mcadoo, Fred 
 Wilson, and Stephen Wolfram for reading drafts of this, and to Ed Dumbill for inviting me to speak.
 (The second part of this talk became Why Startups Condense in America.)
@@ -3960,7 +3960,7 @@ me most about startups is how few of the most successful founders are like that.
 successful people in other industries are; I don't know; but not startup founders. [1]
 I knew this empirically , but I never saw the math of why till I got this founder's email. In it he said 
 he worried that he was fundamentally soft-hearted and tended to give away too much for free. 
-He thought perhaps he needed ""a little dose of sociopath-ness."""
+He thought perhaps he needed ""a little dose of sociopath-ness.""",0
 What are the biggest differences between Paul Graham’s startup philosophy and Peter Thiel’s arguments in 'Zero to One' regarding monopolies and competition?,"They can take their time and copy you instead of buying you. If you want to get market price, 
 work on something where there's competition.
 If an increasing number of startups are created to do product development on spec, it will be a 
@@ -4059,7 +4059,7 @@ Black Swan Farming - # 147
  Want to start a startup? Get funded by Y Combinator. 
  September 2012
 I've done several types of work over the years but I don't know another as counterintuitive as 
-startup investing."
+startup investing.",0
 How do Paul Graham’s views on entrepreneurship differ from Elon Musk’s approach to building capital-intensive technology companies like SpaceX and Tesla?,"But the similarities feel greater than the 
 differences. John Smith is now John Smith, 22, a software developer at such and such 
 corporation.
@@ -4158,7 +4158,7 @@ think ""I bet we could write a Basic interpreter for it."" Drew Houston realizes
 USB stick and thinks ""I really need to make my files live online."" Lots of people heard about the 
 Altair. Lots forgot USB sticks. The reason those stimuli caused those founders to start 
 companies was that their experiences had prepared them to notice the opportunities they 
-represented."
+represented.",0
 "How does Paul Graham’s perspective on identifying good startup ideas compare with the Lean Startup methodology developed by Eric Ries, and which approach is better?","We've always 
 encouraged founders to see a startup idea as a hypothesis rather than a blueprint. And yet 
 they're still surprised how well it works to change the idea. Normally if you complain about 
@@ -4254,7 +4254,7 @@ and novel, an idea probably has to seem bad to most people, or someone would alr
 doing it and it wouldn't be novel.
 That makes judging startups harder than most other things one judges. Y ou have to be an 
 intellectual contrarian to be a good startup investor. That's a problem for VCs, most of whom 
-are not particularly imaginative."
+are not particularly imaginative.",0
 What are the major similarities and differences between Paul Graham’s Y Combinator model and the philosophies of other successful startup accelerators?,"He, like 
 most of his peers, couldn't afford a monitor.
 Thanks to Sam Altman, Mike Arrington, Paul Buchheit, John Collison, Patrick Collison, Garry T an, and Harj T aggar 
@@ -4356,7 +4356,7 @@ Notes:
 [1] The only people who lost were us. The angels had convertible debt, so they had first claim on the proceeds of the 
 auction. Y Combinator only got 38 cents on the dollar.
 [2] The best kind of organization for that might be an open source project, but those don't involve a lot of face to face 
-meetings."
+meetings.",0
 "Which of Paul Graham’s essays had the most profound impact on your thinking, and how has it changed the way you approach business, technology, or creativity?","What makes him unique is his 
 sense of design. Before him, most companies treated design as a frivolous extra. Apple's 
 competitors now know better.
@@ -4454,7 +4454,7 @@ one. The stories that seemed to be most admired were ones in which people suffer
 complicated ways. Anything funny or gripping was ipso facto suspect, unless it was old enough 
 to be hard to understand, like Shakespeare or Chaucer. Mistake number two. The ideal medium 
 seemed the short story , which I've since learned had quite a brief life, roughly coincident with 
-the peak of magazine publishing."
+the peak of magazine publishing.",0
 "What are three of the most important takeaways from Paul Graham’s essays that you would apply in your own work, and how would they be beneficial?","I 
 didn't realize this when I began that essay , and even now I find it kind of weird. That's what 
 you're looking for.
@@ -4553,7 +4553,7 @@ I think the goal of an essay should be to discover surprising things. That's my 
 most surprising means most different from what people currently believe. So writing to 
 persuade and writing to discover are diametrically opposed. The more your conclusions 
 disagree with readers' present beliefs, the more effort you'll have to expend on selling your 
-ideas rather than having them."
+ideas rather than having them.",0
 "If you could ask Paul Graham a single question about his essays, what would it be, and why do you think his response would be valuable?","[3]
 Even Newton fell into this trap. After publishing his theory of colors in 1672 he found himself 
 distracted by disputes for years, finally concluding that the only solution was to stop publishing: I 
@@ -4650,7 +4650,7 @@ interesting if you get deeply enough into it. One possible exception might be th
 deliberately had all the variation sucked out of them, like working in fast food. In retrospect, was 
 there anything interesting about working at Baskin-Robbins? Well, it was interesting how 
 important color was to the customers. Kids a certain age would point into the case and say that 
-they wanted yellow. Did they want French Vanilla or Lemon? They would just look at you blankly ."
+they wanted yellow. Did they want French Vanilla or Lemon? They would just look at you blankly .",0
 "What is the most controversial idea Paul Graham presents in his essays, and how would you argue either in favor of or against his perspective?","[3]
 Even Newton fell into this trap. After publishing his theory of colors in 1672 he found himself 
 distracted by disputes for years, finally concluding that the only solution was to stop publishing: I 
@@ -4745,7 +4745,7 @@ Here's an example of a paragraph from an essay I wrote about labor unions. As wr
 to offend people who like unions. People who think the labor movement was the creation of 
 heroic union organizers have a problem to explain: why are unions shrinking now? The best 
 they can do is fall back on the default explanation of people living in fallen civilizations. Our 
-ancestors were giants."
+ancestors were giants.",0
 "How has reading Paul Graham’s essays changed your understanding of innovation, startups, or the broader role of technology in shaping modern society?","Perhaps later they step 
 back and notice they've found an idea in everyone else's blind spot, and from that point make a 
 deliberate effort to stay there. [3] But at the moment when successful startups get started, much 
@@ -4851,4 +4851,4 @@ More remarkable still, he's stayed interesting for 30 years. People await new Ap
 way they'd await new books by a popular novelist. Steve may not literally design them, but they 
 wouldn't happen if he weren't CEO.
 Steve is clever and driven, but so are a lot of people in the Valley . What makes him unique is his 
-sense of design."
+sense of design.",0
