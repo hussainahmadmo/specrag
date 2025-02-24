@@ -437,8 +437,6 @@ def compute_tsne(json_path, query_text, perplexity=50):
     
     # Generate and normalize data embeddings
     data_embeddings = np.array(get_embedding(texts))
-    data_embeddings = normalize(data_embeddings, axis=1)  # L2 Normalization
-    
     words = query_text.split()
     query_prefixes = [" ".join(words[: len(words) - i]) for i in range(len(words)) if words[: len(words) - i]]
 
@@ -447,13 +445,10 @@ def compute_tsne(json_path, query_text, perplexity=50):
 
     for i, prefix in enumerate(query_prefixes):
         query_embedding = np.array(get_embedding(prefix)).reshape(1, -1)  # Ensure it's 2D
-        query_embedding = normalize(query_embedding, axis=1)  # L2 Normalization
-
         # Stack normalized embeddings
         all_embeddings = np.vstack([data_embeddings, query_embedding])
-        
         # Compute t-SNE
-        embeddings_2d_slow = SklearnTSNE(n_components=2, perplexity=perplexity, init="random").fit_transform(all_embeddings)
+        embeddings_2d_slow = SklearnTSNE(n_components=2, perplexity=perplexity, init="random", random_state=42).fit_transform(all_embeddings)
         
         # Extract the query representation
         query_2d = embeddings_2d_slow[-1]
@@ -475,46 +470,63 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 def plot_tsne(prefix_2d_emb_map, data_embedding, append_suffix):
-    """Plot t-SNE embeddings of prefixes and data in the same graph with different colors."""
+    """Plot t-SNE embeddings of prefixes and data in the same graph with high resolution."""
+    
+    # Define save directory
     save_dir = "saved_graphs/tsne_graphs/"
     exp_dir = os.path.join(save_dir, append_suffix)
     os.makedirs(exp_dir, exist_ok=True)
-    
+
+    # Ensure unique file names
     counter = 1
     base_file_name = append_suffix
     while os.path.exists(os.path.join(exp_dir, f"{base_file_name}-{counter}.png")):
         counter += 1
     save_path = os.path.join(exp_dir, f"{base_file_name}-{counter}.png")
-    
+
     num_prefixes = len(prefix_2d_emb_map)
-    
+
     # Generate a unique color for each prefix
-    colors = sns.color_palette("husl", num_prefixes)
+    colors = sns.color_palette("tab10", num_prefixes)  # "tab10" provides visually distinct colors
 
-    # Create figure and axis
-    fig, ax = plt.subplots(figsize=(12, 8))
+    # Create figure and axis with higher DPI
+    fig, ax = plt.subplots(figsize=(14, 10), dpi=300)  # Increased size and resolution
 
-    # Plot the data embedding in gray
-    ax.scatter(data_embedding[:, 0], data_embedding[:, 1], c='gray', alpha=0.5, label="Data Embedding")
+    # Plot the dataset embeddings in gray with larger markers
+    ax.scatter(data_embedding[:, 0], data_embedding[:, 1], 
+               c='gray', alpha=0.5, s=20, label="Dataset Embeddings")  # `s` controls marker size
 
     # Plot each prefix embedding in a different color
     for (prefix, prefix_embedding), color in zip(prefix_2d_emb_map.items(), colors):
         prefix_embedding = np.array(prefix_embedding).reshape(-1, 2)
         prefix_length = len(prefix.split())  # Count words in the prefix
-        ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], c=[color], label=f"Prefix Length: {prefix_length}")
+        ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], 
+                   c=[color], s=100, edgecolors='black', label=f"Prefix Length: {prefix_length}")
 
-    # Set title
-    ax.set_title("t-SNE Visualization of Prefixes and Data Embeddings")
+    # Set title with improved font size
+    ax.set_title("High-Resolution t-SNE Visualization of Prefixes and Data Embeddings", fontsize=16)
 
     # Place the legend outside the plot
-    legend = ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=8, title="Legend", frameon=False)
+    legend = ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10, title="Legend", frameon=False)
+
+    # Improve axis labels for clarity
+    ax.set_xlabel("t-SNE Dimension 1", fontsize=12)
+    ax.set_ylabel("t-SNE Dimension 2", fontsize=12)
 
     # Adjust layout to avoid overlap
-    plt.tight_layout(rect=[0, 0, 0.8, 1])  # Ensure space for the legend
+    plt.tight_layout(rect=[0, 0, 0.8, 1])  # Ensures space for the legend
 
-    # Save figure with bbox_inches='tight' to include the legend
-    plt.savefig(save_path, bbox_inches='tight')
+    # Save figure with high resolution and tight bounding box
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')  # Increased DPI to 600 for clarity
+
+    print(f"Saved high-resolution t-SNE visualization at: {save_path}")
+
 
 
 #TODO
