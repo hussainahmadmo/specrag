@@ -34,12 +34,8 @@ datasets = {
     },
 }
 
-# Define different query types
-query_types = {
-    "simple": queries_list.simple_pg,
-    "complex_20": queries_list.complex_pg_20,
-    "complex_50": queries_list.complex_pg_50,
-}
+# # Define different query types
+query_types = {"complex_20": queries_list.complex_pg_20}
 
 from utils import generate_mean_statistics
 from pipeline import establish_baseline
@@ -54,12 +50,6 @@ def run_pipeline(dataset_name, model_path, chunk_size, query_type):
         chunk_size (int): Size of text chunks.
         query_type (str): Type of query ('simple', 'complex_20', 'complex_50').
     """
-
-    # Validate dataset and query type
-    if dataset_name not in datasets:
-        raise ValueError(f"Dataset {dataset_name} is not defined. Choose from {list(datasets.keys())}")
-    if query_type not in query_types:
-        raise ValueError(f"Query type {query_type} is not defined. Choose from {list(query_types.keys())}")
     # Load model and tokenizer
     model, tokenizer = load_model_tokenizer(model_path)
     # Load dataset configuration
@@ -86,66 +76,64 @@ def run_pipeline(dataset_name, model_path, chunk_size, query_type):
     # Create a mapping from chunk index to text
     id_to_text = {entry["chunk_index"]: entry["text"] for entry in data}
     # log_df = pd.DataFrame(columns=["k_example", "embed_time", "search_time", "query_text", "retrival_time"])
-    for query_text in query_set:
-        try:
-            df = pd.read_csv("./csv_files/retrieved_chunks.csv")
-        except FileNotFoundError:
-            df = pd.DataFrame(columns=["query_text"])  # Initialize empty DataFrame
-        establish_baseline(query_text, index, df, id_to_text, top_k=10)
+    # for query_text in query_set:
+    #     try:
+    #         df = pd.read_csv("./csv_files/retrieved_chunks.csv")
+    #     except FileNotFoundError:
+    #         df = pd.DataFrame(columns=["query_text"])  # Initialize empty DataFrame
+    #     establish_baseline(query_text, index, df, id_to_text, top_k=10)
 
-    df = pd.read_csv("./csv_files/queries50_top10chunks.csv")
-    # average_chunks(df)
-
-    import sys
+    # df = pd.read_csv("./csv_files/queries50_top10chunks.csv")
+    # import sys
         
-    for query_text in query_set:
-        query_index_retrival_duration, query_index = get_query_indices(faiss_index=index, k_example=5, query_text=query_text)
-        partial_query_retained_index_map = measure_retained_indexes(query_text=query_text, query_index=query_index, faiss_index=index)
-        # Generate graph for retained indexes
-        # generate_retained_chunks_graph(query_index_map=partial_query_retained_index_map, query_text=query_text, append_suffix=f"{dataset_name}_retained")
-        query_to_required_prefixes = measure_rate(query_text=query_text, faiss_index=index, query_index=query_index)
-        # generate_match_rate(query_map=query_to_required_prefixes, append_suffix=f"{query_type}_match_rate")
-        # generate_match_rate_words(query_map=query_to_required_prefixes, append_suffix=f"{query_type}_match_rate_words")
-        generate_end2end_graph(query_to_required_prefixes)
+    # for query_text in query_set:
+    #     query_index_retrival_duration, query_index = get_query_indices(faiss_index=index, k_example=5, query_text=query_text)
+    #     partial_query_retained_index_map = measure_retained_indexes(query_text=query_text, query_index=query_index, faiss_index=index)
+    #     # Generate graph for retained indexes
+    #     # generate_retained_chunks_graph(query_index_map=partial_query_retained_index_map, query_text=query_text, append_suffix=f"{dataset_name}_retained")
+    #     query_to_required_prefixes = measure_rate(query_text=query_text, faiss_index=index, query_index=query_index)
+    #     # generate_match_rate(query_map=query_to_required_prefixes, append_suffix=f"{query_type}_match_rate")
+    #     # generate_match_rate_words(query_map=query_to_required_prefixes, append_suffix=f"{query_type}_match_rate_words")
+    #     generate_end2end_graph(query_to_required_prefixes)
 
-    all_queries_delay_map = defaultdict(list)
+    # all_queries_delay_map = defaultdict(list)
 
 
-    for query_text in query_set:
+    # for query_text in query_set:
 
-        query_index_retrival_duration, query_index = get_query_indices(faiss_index=index, k_example=5, query_text=query_text)
-        partial_query_retained_index_map = measure_retained_indexes(query_text=query_text, query_index=query_index, faiss_index=index)
+    #     query_index_retrival_duration, query_index = get_query_indices(faiss_index=index, k_example=5, query_text=query_text)
+    #     partial_query_retained_index_map = measure_retained_indexes(query_text=query_text, query_index=query_index, faiss_index=index)
             
-        bandwidth_list = []
-        percentage_to_chunk_map = defaultdict(list)
-        truncated_query_length = None
-        percentages_of_query = [0.25, 0.5, 0.75, 0.90]
-        chunks_sizes = [5, 10, 15, 20]
-        for percentage in percentages_of_query:
-            for chunk_size in chunks_sizes:
-                bandwidth_used, extra_delay, truncated_query_length = measure_bandwidth_delay(query_text,
-                                                                index,
-                                                                query_index,
-                                                                no_of_chunks_to_retrieve=chunk_size,
-                                                                percentage_of_query=percentage
-                                                                )
-                truncated_query_length = truncated_query_length
-                percentage_to_chunk_map[percentage].append(extra_delay)
-                bandwidth_list.append(bandwidth_used)
-        #only use the first 4 elements
-        # generate_bandwidth_delay_graph(bandwidth_list[:4], percentage_to_chunk_map, query_text)
-        all_queries_delay_map[query_text].append(percentage_to_chunk_map)
-        # mean_values_map = generate_mean_statistics(all_queries_delay_map)
-        # from utils import generate_mean_graph
-        # generate_mean_graph(bandwidth_list[:4], mean_values_map)
+    #     bandwidth_list = []
+    #     percentage_to_chunk_map = defaultdict(list)
+    #     truncated_query_length = None
+    #     percentages_of_query = [0.25, 0.5, 0.75, 0.90]
+    #     chunks_sizes = [5, 10, 15, 20]
+    #     for percentage in percentages_of_query:
+    #         for chunk_size in chunks_sizes:
+    #             bandwidth_used, extra_delay, truncated_query_length = measure_bandwidth_delay(query_text,
+    #                                                             index,
+    #                                                             query_index,
+    #                                                             no_of_chunks_to_retrieve=chunk_size,
+    #                                                             percentage_of_query=percentage
+    #                                                             )
+    #             truncated_query_length = truncated_query_length
+    #             percentage_to_chunk_map[percentage].append(extra_delay)
+    #             bandwidth_list.append(bandwidth_used)
+    #     #only use the first 4 elements
+    #     # generate_bandwidth_delay_graph(bandwidth_list[:4], percentage_to_chunk_map, query_text)
+    #     all_queries_delay_map[query_text].append(percentage_to_chunk_map)
+    #     # mean_values_map = generate_mean_statistics(all_queries_delay_map)
+    #     # from utils import generate_mean_graph
+    #     # generate_mean_graph(bandwidth_list[:4], mean_values_map)
 
-        from pipeline import compute_tsne
-        from pipeline import plot_tsne
-
-        q_len = len(query_text.split())
-        prefix_map, data_emb = compute_tsne(json_path=dataset["json_output_path"], 
-                         query_text=query_text)
-        plot_tsne(prefix_map, data_embedding=data_emb, append_suffix=f"qrylen_{q_len}")
+    from pipeline import compute_tsne
+    # from pipeline import plot_tsne
+    from pipeline import plot_tsne_per_query
+    pg_query_map = {f"Q{i+1}": query for i, query in enumerate(queries_list.complex_pg_20)}
+    prefix_map, data_emb = compute_tsne(json_path=dataset["json_output_path"], 
+                            id_query_map=pg_query_map)
+    plot_tsne_per_query(prefix_map, data_embedding=data_emb)
 
 
 

@@ -412,13 +412,23 @@ import os
 import json
 from sklearn.manifold import TSNE as SklearnTSNE
 
-def compute_tsne(json_path, query_text, perplexity=50):
+import os
+import numpy as np
+import json
+from sklearn.manifold import TSNE as SklearnTSNE
+
+def compute_tsne(json_path, id_query_map, perplexity=50):
     """
     Compute or load embeddings using t-SNE.
+    
+    Args:
+        json_path (str): Path to the JSON file containing text data.
+        id_query_map (dict): A dictionary mapping unique query IDs (str) to their corresponding queries (str).
+        perplexity (int): Perplexity parameter for t-SNE.
+
     Returns:
-        prefix_2d_emb_map
-        embeddings_2d_copy[:-1] - all embeddings except the 
-                                  last row (the last row is query tsne-2d representation)
+        prefix_2d_emb_map (dict): A dictionary mapping query IDs to their text and a dictionary of prefix embeddings.
+        embeddings_2d_copy[:-1]: All embeddings except the last row (which is the last query's tsne-2d representation).
     """
     npz_file_path = "./data/computed_emb/prefix_embedding.npz"
     
@@ -434,98 +444,98 @@ def compute_tsne(json_path, query_text, perplexity=50):
         data = json.load(f)
     
     texts = [chunk["text"] for chunk in data]
-    
-    # Generate and normalize data embeddings
     data_embeddings = np.array(get_embedding(texts))
-    words = query_text.split()
-    query_prefixes = [" ".join(words[: len(words) - i]) for i in range(len(words)) if words[: len(words) - i]]
-
-    embeddings_2d_copy = None
     prefix_2d_emb_map = {}
+    embeddings_2d_copy = None
 
-    for i, prefix in enumerate(query_prefixes):
-        query_embedding = np.array(get_embedding(prefix)).reshape(1, -1)  # Ensure it's 2D
-        # Stack normalized embeddings
-        all_embeddings = np.vstack([data_embeddings, query_embedding])
-        # Compute t-SNE
-        embeddings_2d_slow = SklearnTSNE(n_components=2, perplexity=perplexity, init="random", random_state=42).fit_transform(all_embeddings)
+    for query_id, query_text in id_query_map.items():
+        words = query_text.split()
+        query_prefixes = [" ".join(words[: len(words) - i]) for i in range(len(words)) if words[: len(words) - i]]
         
-        # Extract the query representation
-        query_2d = embeddings_2d_slow[-1]
-        prefix_2d_emb_map[prefix] = query_2d
-        embeddings_2d_copy = embeddings_2d_slow
+        # Initialize structure for storing prefixes
+        prefix_2d_emb_map[query_id] = {
+            "query_text": query_text,
+            "prefixes": {}
+        }
+
+        for prefix in query_prefixes:
+            query_embedding = np.array(get_embedding(prefix)).reshape(1, -1)  # Ensure it's 2D
+            # Stack normalized embeddings
+            all_embeddings = np.vstack([data_embeddings, query_embedding])
+            # Compute t-SNE
+            embeddings_2d_slow = SklearnTSNE(n_components=2, perplexity=perplexity, init="random", random_state=42, n_jobs=-1).fit_transform(all_embeddings)
+            query_2d = embeddings_2d_slow[-1]
+            embeddings_2d_copy = embeddings_2d_slow
+            # Store prefix 2D embedding
+            prefix_2d_emb_map[query_id]["prefixes"][prefix] = query_2d
 
     # Save results in a compressed file
     np.savez_compressed(npz_file_path, prefix_2d_emb_map=prefix_2d_emb_map, embeddings_2d_copy=embeddings_2d_copy)
-
     return prefix_2d_emb_map, embeddings_2d_copy[:-1]
 
 
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-def plot_tsne(prefix_2d_emb_map, data_embedding, append_suffix):
-    """Plot t-SNE embeddings of prefixes and data in the same graph with high resolution."""
-    
-    # Define save directory
-    save_dir = "saved_graphs/tsne_graphs/"
-    exp_dir = os.path.join(save_dir, append_suffix)
-    os.makedirs(exp_dir, exist_ok=True)
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-    # Ensure unique file names
-    counter = 1
-    base_file_name = append_suffix
-    while os.path.exists(os.path.join(exp_dir, f"{base_file_name}-{counter}.png")):
-        counter += 1
-    save_path = os.path.join(exp_dir, f"{base_file_name}-{counter}.png")
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-    num_prefixes = len(prefix_2d_emb_map)
+def plot_tsne_per_query(prefix_2d_emb_map, data_embedding, save_dir="saved_graphs/tsne_graphs/"):
+    """Plot t-SNE embeddings for each full query separately, showing prefix length variations."""
 
-    # Generate a unique color for each prefix
-    colors = sns.color_palette("tab10", num_prefixes)  # "tab10" provides visually distinct colors
+    # Create save directory
+    os.makedirs(save_dir, exist_ok=True)
 
-    # Create figure and axis with higher DPI
-    fig, ax = plt.subplots(figsize=(14, 10), dpi=300)  # Increased size and resolution
+    # Iterate over each full query and plot its prefixes separately
+    for query_id, prefix_data in prefix_2d_emb_map.items():
+        fig, ax = plt.subplots(figsize=(10, 8), dpi=300)
 
-    # Plot the dataset embeddings in gray with larger markers
-    ax.scatter(data_embedding[:, 0], data_embedding[:, 1], 
-               c='gray', alpha=0.5, s=20, label="Dataset Embeddings")  # `s` controls marker size
+        # Plot dataset embeddings in gray
+        ax.scatter(data_embedding[:, 0], data_embedding[:, 1], 
+                   c='gray', alpha=0.3, s=20, label="Dataset Embeddings")
 
-    # Plot each prefix embedding in a different color
-    for (prefix, prefix_embedding), color in zip(prefix_2d_emb_map.items(), colors):
-        prefix_embedding = np.array(prefix_embedding).reshape(-1, 2)
-        prefix_length = len(prefix.split())  # Count words in the prefix
-        ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], 
-                   c=[color], s=100, edgecolors='black', label=f"Prefix Length: {prefix_length}")
+        # Generate colors for prefix length shading
+        max_prefix_length = max(len(prefix.split()) for prefix in prefix_data["prefixes"])
+        cmap = sns.color_palette("Blues", max_prefix_length)  # Shades of blue for prefix length
 
-    # Set title with improved font size
-    ax.set_title("High-Resolution t-SNE Visualization of Prefixes and Data Embeddings", fontsize=16)
+        # Plot each prefix for this query
+        for prefix, prefix_embedding in prefix_data["prefixes"].items():
+            prefix_embedding = np.array(prefix_embedding).reshape(-1, 2)
+            prefix_length = len(prefix.split())  # Count words in the prefix
 
-    # Place the legend outside the plot
-    legend = ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10, title="Legend", frameon=False)
+            ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], 
+                       c=[cmap[prefix_length - 1]], s=100, edgecolors='black', 
+                       label=f"Prefix Length {prefix_length}" if prefix_length == max_prefix_length else None)
 
-    # Improve axis labels for clarity
-    ax.set_xlabel("t-SNE Dimension 1", fontsize=12)
-    ax.set_ylabel("t-SNE Dimension 2", fontsize=12)
+        # Labels and title
+        ax.set_title(f"t-SNE Projection for Query: {query_id}", fontsize=14)
+        ax.set_xlabel("t-SNE Dimension 1", fontsize=12)
+        ax.set_ylabel("t-SNE Dimension 2", fontsize=12)
 
-    # Adjust layout to avoid overlap
-    plt.tight_layout(rect=[0, 0, 0.8, 1])  # Ensures space for the legend
+        # Legend placement
+        ax.legend(loc='upper right', fontsize=10, frameon=False)
 
-    # Save figure with high resolution and tight bounding box
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')  # Increased DPI to 600 for clarity
+        # Save figure for this query
+        save_path = os.path.join(save_dir, f"tsne_query_{query_id}.png")
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved t-SNE plot for Query {query_id} at: {save_path}")
 
-    print(f"Saved high-resolution t-SNE visualization at: {save_path}")
+        plt.close(fig)  # Close figure to avoid memory issues
+
 
 
 
