@@ -494,6 +494,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.patches as mpatches
+
 def plot_tsne_per_query(prefix_2d_emb_map, data_embedding, save_dir="saved_graphs/tsne_graphs/"):
     """Plot t-SNE embeddings for each full query separately, showing prefix length variations."""
 
@@ -508,26 +514,41 @@ def plot_tsne_per_query(prefix_2d_emb_map, data_embedding, save_dir="saved_graph
         ax.scatter(data_embedding[:, 0], data_embedding[:, 1], 
                    c='gray', alpha=0.3, s=20, label="Dataset Embeddings")
 
+        # Get unique prefix lengths
+        prefix_lengths = sorted(set(len(prefix.split()) for prefix in prefix_data["prefixes"]))
+
         # Generate colors for prefix length shading
-        max_prefix_length = max(len(prefix.split()) for prefix in prefix_data["prefixes"])
-        cmap = sns.color_palette("Blues", max_prefix_length)  # Shades of blue for prefix length
+        cmap = sns.color_palette("Blues", len(prefix_lengths))  # Shades of blue for prefix length
+
+        # Create a mapping from prefix length to color
+        prefix_length_to_color = {length: cmap[i] for i, length in enumerate(prefix_lengths)}
+
+        # Dictionary to store legend handles
+        legend_handles = {}
 
         # Plot each prefix for this query
         for prefix, prefix_embedding in prefix_data["prefixes"].items():
             prefix_embedding = np.array(prefix_embedding).reshape(-1, 2)
             prefix_length = len(prefix.split())  # Count words in the prefix
+            color = prefix_length_to_color[prefix_length]
 
-            ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], 
-                       c=[cmap[prefix_length - 1]], s=100, edgecolors='black', 
-                       label=f"Prefix Length {prefix_length}" if prefix_length == max_prefix_length else None)
+            scatter = ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], 
+                                 c=[color], s=100, edgecolors='black')
+
+            # Store one entry per prefix length for the legend
+            if prefix_length not in legend_handles:
+                legend_handles[prefix_length] = mpatches.Patch(color=color, label=f"Prefix Length {prefix_length}")
 
         # Labels and title
         ax.set_title(f"t-SNE Projection for Query: {query_id}", fontsize=14)
         ax.set_xlabel("t-SNE Dimension 1", fontsize=12)
         ax.set_ylabel("t-SNE Dimension 2", fontsize=12)
 
-        # Legend placement
-        ax.legend(loc='upper right', fontsize=10, frameon=False)
+        # Manually create the legend
+        legend_labels = [f"Prefix Length {length}" for length in legend_handles.keys()]
+        if legend_handles:  # Only add legend if there are prefixes
+            ax.legend(handles=legend_handles.values(), 
+                      loc='upper left', bbox_to_anchor=(1.05, 1), fontsize=10, frameon=False, title="Prefix Lengths")
 
         # Save figure for this query
         save_path = os.path.join(save_dir, f"tsne_query_{query_id}.png")
@@ -535,9 +556,6 @@ def plot_tsne_per_query(prefix_2d_emb_map, data_embedding, save_dir="saved_graph
         print(f"Saved t-SNE plot for Query {query_id} at: {save_path}")
 
         plt.close(fig)  # Close figure to avoid memory issues
-
-
-
 
 #TODO
 # def average_chunks(df):
