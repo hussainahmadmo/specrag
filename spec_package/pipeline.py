@@ -10,7 +10,7 @@ from config_manager import ConfigManager
 from typing import List, Dict
 # ---------- Logging Setup -----------
 logging.basicConfig(
-    filename="app.log",filemode="a",level=logging.INFO,format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="baseline_retrival.log",filemode="a",level=logging.INFO,format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 from llama_index.core.node_parser import SentenceSplitter
@@ -19,8 +19,12 @@ from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.core.schema import BaseNode
 import json 
 # ---------- GLOBAL VARIABLES -----------
+from transformers import AutoModelForCausalLM, AutoTokenizer
 config = ConfigManager.load_config("../configs/central.yaml") 
-MODEL = SentenceTransformer("all-MiniLM-L6-v2")    
+EMB_MODEL = SentenceTransformer("all-MiniLM-L6-v2")    
+device = "cuda:0"  # Change to your desired GPU
+# GEN_MODEL = AutoModelForCausalLM.from_pretrained("meta-llama/Meta-Llama-3.1-8B-Instruct").to(device)
+# tokenizer_gen_model = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3.1-8B-Instruct")
 
 
 def get_embedding(text : list):
@@ -28,7 +32,7 @@ def get_embedding(text : list):
     List of sentences
     Return embedding (can be used for both query and sentences(text from document))
     """
-    embeddings = MODEL.encode(text)
+    embeddings = EMB_MODEL.encode(text)
     return embeddings
 
 def chunk_text(text : str,
@@ -59,7 +63,7 @@ def chunk_text(text : str,
             token_lengths_list = [chunk["token_lengths"] for chunk in chunks_data]
         return token_lengths_list  # Return token lengths from the existing JSON
     document = Document(text = text)
-    splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=50)
+    splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=20)
     nodes = splitter.get_nodes_from_documents([document])
     chunks_data = []
     #convert to JSON friendly version
@@ -127,9 +131,6 @@ def get_query_indices(
     query_indices_retreval_duration = time.time() - t_query
     return query_indices_retreval_duration, indices
 
-# Load model directly
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers import AutoModel
 import torch
 
 def load_model_tokenizer(model_path):
@@ -241,6 +242,10 @@ def measure_rate(query_text, faiss_index, query_index):
     """
     words = query_text.split()
     prefix_query_to_retrieved_indexes = {}
+    with open("./data/json_files/paul-graham-essay/paul-graham-essay-csize200.json", "r", encoding="utf-8") as file:
+        data = json.load(file)
+    # Create a mapping from chunk index to text
+    id_to_text = {entry["chunk_index"]: entry["text"] for entry in data}
 
     for i in range(len(words)):
         partial_query = " ".join(words[: len(words) - i])
@@ -248,8 +253,12 @@ def measure_rate(query_text, faiss_index, query_index):
         start_time = time.time()
         for j in range(0, 60000, 10):
             _ , prefix_index = faiss_index.search(partial_query_embedding, j+5)
-            prefix_index.flatten()
-            # logging.info(f"Query Indexes : {query_index} - Partial {prefix_index} = Missing indexes {np.setdiff1d(query_index, prefix_index)}")
+            prefix_index = prefix_index.flatten().tolist()  # Convert to a standard list
+            retrieved_chunks = [id_to_text[int(idx)] for idx in prefix_index if int(idx) in id_to_text]
+            logging.info(f"\nPartial Query: '{partial_query}'")
+            logging.info("Length of Retrieved Chunks:" + len(retrieved_chunks))
+            for idx, chunk in zip(prefix_index, retrieved_chunks):
+                logging.info(f"- Chunk {idx}: {chunk[:200]}...")  # Limit output to first 200 chars
             if np.all(np.isin(query_index, prefix_index)):
                 prefix_query_to_retrieved_indexes[partial_query] = [j+5]
                 retrieval_time = time.time() - start_time
@@ -277,6 +286,284 @@ def measure_typing_time(query_text, tokenizer,  one_word_time=0.66):
             prefix_query += " " + token
         prefix_time[prefix_query] = (i + 1) * one_word_time
     return prefix_time
+
+
+def measure_rate(query_text, faiss_index, query_index):
+    """
+    Return:
+        prefix_query_to_retrieved_indexes : dict
+            A dictionary where:
+            - Keys are partial queries.
+            - Values are lists containing:
+                - The number of retrieved indexes.
+                - The retrieval time.
+            Ensures that at least the required number of indexes are retrieved to include the top 5 results.
+    """
+    words = query_text.split()
+    prefix_query_to_retrieved_indexes = {}
+    with open("./data/json_files/paul-graham-essay/paul-graham-essay-csize200.json", "r", encoding="utf-8") as file:
+        data = json.load(file)
+    # Create a mapping from chunk index to text
+    id_to_text = {entry["chunk_index"]: entry["text"] for entry in data}
+
+    for i in range(len(words)):
+        partial_query = " ".join(words[: len(words) - i])
+        partial_query_embedding = get_embedding(partial_query).reshape(1, -1)
+        start_time = time.time()
+        for j in range(0, 60000, 10):
+            _ , prefix_index = faiss_index.search(partial_query_embedding, j+5)
+            prefix_index = prefix_index.flatten().tolist()  # Convert to a standard list
+            retrieved_chunks = [id_to_text[int(idx)] for idx in prefix_index if int(idx) in id_to_text]
+            # logging.info(f"\nPartial Query: '{partial_query}'")
+            # # logging.info("Length of Retrieved Chunks:" + len(retrieved_chunks))
+            # for idx, chunk in zip(prefix_index, retrieved_chunks):
+            #     logging.info(f"- Chunk {idx}: {chunk[:200]}...")  # Limit output to first 200 chars
+            if np.all(np.isin(query_index, prefix_index)):
+                prefix_query_to_retrieved_indexes[partial_query] = [j+5]
+                retrieval_time = time.time() - start_time
+                prefix_query_to_retrieved_indexes.setdefault(partial_query, []).append(retrieval_time)
+                break
+
+    return prefix_query_to_retrieved_indexes
+
+def establish_baseline(query_text, faiss_index, df, id_to_text, top_k):
+    """
+    Return:
+        prefix_query_to_retrieved_indexes : dict
+            A dictionary where:
+            - Keys are partial queries.
+            - Values are lists containing:
+                - The number of retrieved indexes.
+                - The retrieval time.
+        Args:
+            - top_k - the number of K similar elements 
+                        to retrieve
+    """
+    query_embedding = get_embedding([query_text])
+    _ , prefix_index = faiss_index.search(query_embedding, top_k)
+    prefix_index = prefix_index.flatten().tolist()  # Convert to a standard list
+    retrieved_chunks = [id_to_text[int(idx)] for idx in prefix_index if int(idx) in id_to_text]
+
+    retrieval_results = {"query_text": query_text}
+
+    for i in range(1, top_k + 1):
+        retrieval_results[f"retrieved_chunk_{i}"] = retrieved_chunks[i - 1] if i <= len(retrieved_chunks) else None
+
+    df = pd.concat([df, pd.DataFrame([retrieval_results])], ignore_index=True)
+    df.to_csv("./csv_files/retrieved_chunks.csv", index=False)
+    
+    return df
+
+def measure_bandwidth_delay(query_text, 
+                      faiss_index, 
+                      query_index,
+                      no_of_chunks_to_retrieve,
+                      percentage_of_query,
+                      ):
+    """
+    
+    Return bandwidth used to fetch m chunks, and the 
+    delay incurred for fetching 
+
+    Args - 
+        query_text : full query
+        faiss_index : index to search for
+        query_index : the original query_index 
+
+    Returns 
+    """
+    truncated_query_length = int(len(query_text.split()) * percentage_of_query)
+    truncated_query= query_text.split()[:truncated_query_length]
+    truncated_query= " ".join(truncated_query)  # Convert back to string
+
+
+    _, truncated_query_index = get_query_indices(faiss_index=faiss_index, 
+                                            k_example=no_of_chunks_to_retrieve, 
+                                            query_text=truncated_query)
+    
+    extra_indexes = len(np.setdiff1d(truncated_query_index.flatten(), 
+                                      query_index.flatten()))
+    shared_index_count = len(np.intersect1d(query_index,truncated_query_index))
+    #assuming KV cache size is 20 MB for a 
+    extra_delay = ((5-shared_index_count) * 20) / 125
+    #calculate the delay using the found indexes
+    bandwidth_used = no_of_chunks_to_retrieve * 20
+
+    return bandwidth_used, extra_delay, truncated_query_length
+
+
+
+from sklearn.manifold import TSNE as SklearnTSNE
+from cuml.manifold import TSNE as CuMLTSNE
+
+# from sklearn.decomposition import PCA
+import os
+import json
+import numpy as np
+import matplotlib.pyplot as plt
+import logging
+import cupy as cp  # GPU-based NumPy alternative
+from sklearn.preprocessing import normalize
+
+
+from sklearn.preprocessing import normalize
+import numpy as np
+import os
+import json
+from sklearn.manifold import TSNE as SklearnTSNE
+
+def compute_tsne(json_path, query_text, perplexity=50):
+    """
+    Compute or load embeddings using t-SNE.
+    Returns:
+        prefix_2d_emb_map
+        embeddings_2d_copy[:-1] - all embeddings except the 
+                                  last row (the last row is query tsne-2d representation)
+    """
+    npz_file_path = "./data/computed_emb/prefix_embedding.npz"
+    
+    # Check if .npz file exists and load cached embeddings
+    if os.path.exists(npz_file_path):
+        data = np.load(npz_file_path, allow_pickle=True)
+        prefix_2d_emb_map = data["prefix_2d_emb_map"].item()
+        embeddings_2d_copy = data["embeddings_2d_copy"]
+        return prefix_2d_emb_map, embeddings_2d_copy
+
+    # Load text data from JSON file
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    texts = [chunk["text"] for chunk in data]
+    
+    # Generate and normalize data embeddings
+    data_embeddings = np.array(get_embedding(texts))
+    data_embeddings = normalize(data_embeddings, axis=1)  # L2 Normalization
+    
+    words = query_text.split()
+    query_prefixes = [" ".join(words[: len(words) - i]) for i in range(len(words)) if words[: len(words) - i]]
+
+    embeddings_2d_copy = None
+    prefix_2d_emb_map = {}
+
+    for i, prefix in enumerate(query_prefixes):
+        query_embedding = np.array(get_embedding(prefix)).reshape(1, -1)  # Ensure it's 2D
+        query_embedding = normalize(query_embedding, axis=1)  # L2 Normalization
+
+        # Stack normalized embeddings
+        all_embeddings = np.vstack([data_embeddings, query_embedding])
+        
+        # Compute t-SNE
+        embeddings_2d_slow = SklearnTSNE(n_components=2, perplexity=perplexity, init="random").fit_transform(all_embeddings)
+        
+        # Extract the query representation
+        query_2d = embeddings_2d_slow[-1]
+        prefix_2d_emb_map[prefix] = query_2d
+        embeddings_2d_copy = embeddings_2d_slow
+
+    # Save results in a compressed file
+    np.savez_compressed(npz_file_path, prefix_2d_emb_map=prefix_2d_emb_map, embeddings_2d_copy=embeddings_2d_copy)
+
+    return prefix_2d_emb_map, embeddings_2d_copy[:-1]
+
+
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plot_tsne(prefix_2d_emb_map, data_embedding, append_suffix):
+    """Plot t-SNE embeddings of prefixes and data in the same graph with different colors."""
+    save_dir = "saved_graphs/tsne_graphs/"
+    exp_dir = os.path.join(save_dir, append_suffix)
+    os.makedirs(exp_dir, exist_ok=True)
+    
+    counter = 1
+    base_file_name = append_suffix
+    while os.path.exists(os.path.join(exp_dir, f"{base_file_name}-{counter}.png")):
+        counter += 1
+    save_path = os.path.join(exp_dir, f"{base_file_name}-{counter}.png")
+    
+    num_prefixes = len(prefix_2d_emb_map)
+    
+    # Generate a unique color for each prefix
+    colors = sns.color_palette("husl", num_prefixes)
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Plot the data embedding in gray
+    ax.scatter(data_embedding[:, 0], data_embedding[:, 1], c='gray', alpha=0.5, label="Data Embedding")
+
+    # Plot each prefix embedding in a different color
+    for (prefix, prefix_embedding), color in zip(prefix_2d_emb_map.items(), colors):
+        prefix_embedding = np.array(prefix_embedding).reshape(-1, 2)
+        prefix_length = len(prefix.split())  # Count words in the prefix
+        ax.scatter(prefix_embedding[:, 0], prefix_embedding[:, 1], c=[color], label=f"Prefix Length: {prefix_length}")
+
+    # Set title
+    ax.set_title("t-SNE Visualization of Prefixes and Data Embeddings")
+
+    # Place the legend outside the plot
+    legend = ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=8, title="Legend", frameon=False)
+
+    # Adjust layout to avoid overlap
+    plt.tight_layout(rect=[0, 0, 0.8, 1])  # Ensure space for the legend
+
+    # Save figure with bbox_inches='tight' to include the legend
+    plt.savefig(save_path, bbox_inches='tight')
+
+
+#TODO
+# def average_chunks(df):
+#     """
+#     Return average no of chunks required to answer the queries .
+#     Args:
+#         dataframe : dataframe containing the columns query_text 
+#         and the retrieved top 10 chunks.
+#     """
+
+#     # Process each row into a separate formatted string
+#     query_context_texts = df.apply(
+#         lambda row: " | ".join([f"{col}: {str(row[col])}" for col in df.columns if pd.notna(row[col])]), 
+#         axis=1
+#     ).tolist()
+#     query_text = df.iloc[0,0]
+#     chat1 = [
+#         {
+#             "role": "system",
+#             "content": "You are an AI assistant that selects the minimal number of text chunks required to accurately answer a given query. \
+#                         Return only the relevant chunks from the provided list, ensuring that they fully support the answer to the query.",
+#         },
+#         {"role": "user", "content": f"Query: {query_text}\n\nChunks:\n {query_context_texts[0]}"}
+#     ]
+#     chat1.append({"role": "user", "content": "Return the relevant chunks as a JSON list."})
+#     tokenized_chat = tokenizer_gen_model.apply_chat_template(chat1, tokenize=True, add_generation_prompt=True, return_tensors="pt").to(device)
+#     outputs = GEN_MODEL.generate(tokenized_chat, max_new_tokens=2000)
+#     decoded_output = tokenizer_gen_model.decode(outputs[0])
+
+#     print(decoded_output)
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
 
 #TODO - remove main demo after copying code to run_pipeline.
 # # ========== 4. MAIN DEMO ==========
