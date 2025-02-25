@@ -412,11 +412,6 @@ import os
 import json
 from sklearn.manifold import TSNE as SklearnTSNE
 
-import os
-import numpy as np
-import json
-from sklearn.manifold import TSNE as SklearnTSNE
-
 def compute_tsne(json_path, id_query_map, perplexity=50):
     """
     Compute or load embeddings using t-SNE.
@@ -473,26 +468,6 @@ def compute_tsne(json_path, id_query_map, perplexity=50):
     np.savez_compressed(npz_file_path, prefix_2d_emb_map=prefix_2d_emb_map, embeddings_2d_copy=embeddings_2d_copy)
     return prefix_2d_emb_map, embeddings_2d_copy[:-1]
 
-
-
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 import os
 import numpy as np
@@ -556,6 +531,89 @@ def plot_tsne_per_query(prefix_2d_emb_map, data_embedding, save_dir="saved_graph
         print(f"Saved t-SNE plot for Query {query_id} at: {save_path}")
 
         plt.close(fig)  # Close figure to avoid memory issues
+
+def prefix_index_map(query_map, faiss_index: faiss.Index):
+    """Return the top 5 similar indexes retreived for a prefix."""
+    prefix_index_map = {}
+    for query_id, query_text in query_map.items():
+            words = query_text.split()
+            query_prefixes = [" ".join(words[: len(words) - i]) for i in range(len(words)) if words[: len(words) - i]]
+            # Initialize structure for storing prefixes
+            prefix_index_map[query_id] = {
+                "query_text": query_text,
+                "prefixes": {}
+            }
+
+            for prefix in query_prefixes:
+                prefix_embedding = np.array(get_embedding([prefix]), dtype=np.float32)
+                _ , prefix_index = faiss_index.search(prefix_embedding, 5)
+                prefix_index_map[query_id]["prefixes"][prefix] = prefix_index
+
+    return prefix_index_map
+
+def follows_strict_order(list1, list2):
+    """
+    Returns stru
+
+    Args -  list1 - a list type 
+            list2 - a list type
+    """
+    if not isinstance(list2, list):  # Ensure list2 is a list
+        raise TypeError("list2 must be a list")
+    if not isinstance(list1, list):
+        raise TypeError("list1 must be a list")
+    
+    matched_count = 0
+    for i, val in enumerate(list1):
+        if val == list2[i]:
+            matched_count = matched_count + 1
+
+    if matched_count <= 0:
+        return (False, 0)
+    
+    return (True, matched_count)
+
+def prefix_match(prefix_index_map):
+    """
+    Return the prefix index map, with the common prefix count. The ordering 
+    follows a strict ordering.
+    """
+    for query_id, query_text in prefix_index_map.items():
+        next_indices = None
+        next_prefix = None
+        for prefix, indices in reversed(query_text["prefixes"].items()):
+            current_prefix = prefix
+            current_indices = indices.flatten().tolist()
+            if next_indices is not None and isinstance(next_indices, np.ndarray):
+                next_indices = next_indices.flatten().tolist()
+                current_indices = current_indices.flatten().tolist()
+                res = follows_strict_order(current_indices, next_indices)
+                prefix_index_map[query_id]["prefixes"][current_prefix] = {"index_count" : 0 }
+                prefix_index_map[query_id]["prefixes"][current_prefix]["index_count"] = res[1]
+            if next_indices is not None and isinstance(next_indices, list):
+                res = follows_strict_order(current_indices, next_indices)
+                #TODO - now update count for next index and its prefix
+                prefix_index_map[query_id]["prefixes"][current_prefix] = np.append(prefix_index_map[query_id]["prefixes"][current_prefix], res[1])
+                
+            # Update previous values
+            next_indices = current_indices
+            next_prefix = current_prefix
+    
+    return prefix_index_map
+        
+
+        
+
+        
+
+# def plot_index_match_graph(prefix_index_map):
+
+#     for queries_text in prefix_index_map:
+
+#         for 
+
+
+            
 
 #TODO
 # def average_chunks(df):

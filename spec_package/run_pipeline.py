@@ -133,8 +133,15 @@ def run_pipeline(dataset_name, model_path, chunk_size, query_type):
     pg_query_map = {f"Q{i+1}": query for i, query in enumerate(queries_list.complex_pg_20)}
     prefix_map, data_emb = compute_tsne(json_path=dataset["json_output_path"], 
                             id_query_map=pg_query_map)
-    plot_tsne_per_query(prefix_map, data_embedding=data_emb)
+    # plot_tsne_per_query(prefix_map, data_embedding=data_emb)
+    from pipeline import prefix_index_map
 
+    prefix_index_map = prefix_index_map(pg_query_map, faiss_index=index)
+    from pipeline import prefix_match
+
+    prefix_index_map = prefix_match(prefix_index_map)
+
+    print('Hello World')
 
 
 # This makes the script executable
