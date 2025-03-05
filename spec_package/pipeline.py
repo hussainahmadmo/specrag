@@ -573,12 +573,15 @@ def follows_strict_order(list1, list2):
     
     return (True, matched_count)
 
-def prefix_match(prefix_index_map):
+import copy
+def prev_prefix_match_ordered(prefix_index_map):
     """
-    Return the prefix index map, with the common prefix count. The ordering 
-    follows a strict ordering.
+    Return the prefix index map, with the common prefix count between the current prefix and the other prefix.
+    The ordering follows a strict ordering.
     """
-    for query_id, query_text in prefix_index_map.items():
+    new_prefix_index_map = copy.deepcopy(prefix_index_map)
+
+    for query_id, query_text in new_prefix_index_map.items():
         next_indices = None
         next_prefix = None
         for prefix, indices in reversed(query_text["prefixes"].items()):
@@ -588,18 +591,110 @@ def prefix_match(prefix_index_map):
                 next_indices = next_indices.flatten().tolist()
                 current_indices = current_indices.flatten().tolist()
                 res = follows_strict_order(current_indices, next_indices)
-                prefix_index_map[query_id]["prefixes"][current_prefix] = {"index_count" : 0 }
-                prefix_index_map[query_id]["prefixes"][current_prefix]["index_count"] = res[1]
+                new_prefix_index_map[query_id]["prefixes"][current_prefix] = {"index_count" : 0 }
+                new_prefix_index_map[query_id]["prefixes"][current_prefix]["index_count"] = res[1]
             if next_indices is not None and isinstance(next_indices, list):
                 res = follows_strict_order(current_indices, next_indices)
                 #TODO - now update count for next index and its prefix
-                prefix_index_map[query_id]["prefixes"][current_prefix] = np.append(prefix_index_map[query_id]["prefixes"][current_prefix], res[1])
+                new_prefix_index_map[query_id]["prefixes"][current_prefix] = np.append(new_prefix_index_map[query_id]["prefixes"][current_prefix], res[1])
                 
             # Update previous values
             next_indices = current_indices
             next_prefix = current_prefix
     
-    return prefix_index_map
+    return new_prefix_index_map
+
+def prev_prefix_match_intersect(prefix_index_map):
+    """
+    Return the prefix index map, with the intersection(common indexes bewtween the
+    current prefix and the previous prefix, and the common indexes between the 
+    current prefix and the full query prefix.
+
+
+    Returns - query_index_map
+        In the map, each query has a key. 
+        
+        The second last element of the list is the count of set of 
+        indexes similar between the previous prefix, and the current prefix.
+        The last element in the list is the count of set of indexes similar 
+        between the current prefix.
+        
+        The last element of the list is the count of set of indexes similar 
+        between the full query, and the current prefix.
+
+    """
+    new_prefix_index_map = copy.deepcopy(prefix_index_map)
+
+    for query_id, query_text in new_prefix_index_map.items():
+        next_indices = None
+        next_prefix = None
+        last_query_text = next(iter(new_prefix_index_map[query_id]["prefixes"]))
+        last_index = new_prefix_index_map[query_id]["prefixes"][last_query_text]
+        last_indices = last_index.flatten().tolist()
+
+
+        for prefix, indices in reversed(query_text["prefixes"].items()):
+            current_prefix = prefix
+            current_indices = indices.flatten().tolist()
+            if next_indices is not None and isinstance(next_indices, list):
+                count = len(list(set(current_indices) & set(next_indices)))
+                final_index_intersection_count = len(list(set(current_indices) & set(last_indices)))
+                new_prefix_index_map[query_id]["prefixes"][current_prefix] = np.append(new_prefix_index_map[query_id]["prefixes"][current_prefix], count)
+                new_prefix_index_map[query_id]["prefixes"][current_prefix] = np.append(new_prefix_index_map[query_id]["prefixes"][current_prefix], final_index_intersection_count)
+
+            next_indices = current_indices
+            next_prefix = current_prefix
+
+    return new_prefix_index_map
+
+
+def total_bandwidth(prefix_index_map):
+    """
+    Return the total bandwidth used for each query with query ID.
+    """
+
+    new_prefix_index_map = copy.deepcopy(prefix_index_map)
+
+    query_id_to_total_bandwidth = {}
+    for query_id, querytext in new_prefix_index_map.items():
+
+        query_id_to_total_bandwidth[query_id] = []
+        prev_indices = None
+        last_index = None
+        next_indices_list = []
+        total_bandwidth = []
+        consecutive = False
+        for prefix, indices in reversed(querytext["prefixes"].items()):
+            current_prefix = prefix
+            current_indices = indices.flatten().tolist()
+
+            if prev_indices is not None:
+                delta_change = prev_indices[-1] - current_indices[-1]
+
+                if delta_change == 0:
+                    consecutive = True
+                if (delta_change < 0 or delta_change > 0) and consecutive == True:
+                    query_id_to_total_bandwidth[query_id].append(prev_indices[-1] * 20)
+                    consecutive = False
+
+            last_prev_index = prev_indices
+            prev_indices = current_indices
+
+        delta_change = last_prev_index[-1] - prev_indices[-1]
+
+        if delta_change == 0:
+            query_id_to_total_bandwidth[query_id].append(last_prev_index[-1] * 20)
+        query_id_to_total_bandwidth[query_id].append(last_prev_index[-1])
+        
+    return query_id_to_total_bandwidth
+
+
+
+                
+
+
+
+
         
 
         
