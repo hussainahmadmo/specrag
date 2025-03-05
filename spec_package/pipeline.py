@@ -669,12 +669,12 @@ def total_bandwidth(prefix_index_map):
             current_indices = indices.flatten().tolist()
 
             if prev_indices is not None:
-                delta_change = prev_indices[-1] - current_indices[-1]
+                delta_change = prev_indices[-2] - current_indices[-2]
 
                 if delta_change == 0:
                     consecutive = True
                 if (delta_change < 0 or delta_change > 0) and consecutive == True:
-                    query_id_to_total_bandwidth[query_id].append(prev_indices[-1] * 20)
+                    query_id_to_total_bandwidth[query_id].append(prev_indices[-2] * 20)
                     consecutive = False
 
             last_prev_index = prev_indices
