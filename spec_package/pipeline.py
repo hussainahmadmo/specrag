@@ -611,14 +611,12 @@ def prev_prefix_match_intersect(prefix_index_map):
     current prefix and the full query prefix.
 
 
-    Returns - query_index_map
-        In the map, each query has a key. 
+    Returns - new_prefix_index_map
+        In the updated map, each query has a key. 
         
         The second last element of the list is the count of set of 
         indexes similar between the previous prefix, and the current prefix.
-        The last element in the list is the count of set of indexes similar 
-        between the current prefix.
-        
+
         The last element of the list is the count of set of indexes similar 
         between the full query, and the current prefix.
 
@@ -648,9 +646,20 @@ def prev_prefix_match_intersect(prefix_index_map):
     return new_prefix_index_map
 
 
-def total_bandwidth(prefix_index_map):
+def bandwidth_consecutive(prefix_index_map):
     """
-    Return the total bandwidth used for each query with query ID.
+    Return list of data transferred for each query with query ID, 
+    with the consecutive method. At each prefix where the index are shared
+    start retrieval. 
+
+    Returns - 
+    query_id_to_total_bandwidth- 
+        each query id key has an associate list value. 
+        - the elements represent the data transferred in MB, when we shared indexes
+            between consecutive prefixes.
+            
+        -The last element of the list is the number of overlapping indexes with the final oracle, after the final consecutive retreival.
+         Use (5-last_elemet) to calculate the final delay.
     """
 
     new_prefix_index_map = copy.deepcopy(prefix_index_map)
@@ -660,31 +669,47 @@ def total_bandwidth(prefix_index_map):
 
         query_id_to_total_bandwidth[query_id] = []
         prev_indices = None
+        prev_prefix = None
         last_index = None
         next_indices_list = []
         total_bandwidth = []
         consecutive = False
         for prefix, indices in reversed(querytext["prefixes"].items()):
             current_prefix = prefix
+            #Edge Case 1 - The first current_indices(at the start of the word)
+            #              does not have either the second last element and last element
+                #Note
+                # - the second last element is the number of common indexes betweeen the current prefix 
+                    #and the prev prefix
+                # - the last element is number of common indexes between the full query and the
+                #   current index.
             current_indices = indices.flatten().tolist()
 
             if prev_indices is not None:
+                #the delta is the previous index
                 delta_change = prev_indices[-2] - current_indices[-2]
 
                 if delta_change == 0:
                     consecutive = True
                 if (delta_change < 0 or delta_change > 0) and consecutive == True:
                     query_id_to_total_bandwidth[query_id].append(prev_indices[-2] * 20)
+                    last_match_indices = prev_indices
+                    last_common_with_final = prev_indices[-1]
                     consecutive = False
 
             last_prev_index = prev_indices
             prev_indices = current_indices
+            prev_prefix = current_prefix
 
-        delta_change = last_prev_index[-1] - prev_indices[-1]
+        delta_change = last_prev_index[-2] - prev_indices[-2]
 
         if delta_change == 0:
-            query_id_to_total_bandwidth[query_id].append(last_prev_index[-1] * 20)
-        query_id_to_total_bandwidth[query_id].append(last_prev_index[-1])
+            query_id_to_total_bandwidth[query_id].append(last_prev_index[-2] * 20)
+
+        query_id_to_total_bandwidth[query_id].append(last_common_with_final)
+
+
+
         
     return query_id_to_total_bandwidth
 
