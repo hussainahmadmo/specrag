@@ -653,7 +653,7 @@ def bandwidth_consecutive(prefix_index_map):
     start retrieval. 
 
     Returns - 
-    query_id_to_total_bandwidth- 
+    query_id_bandwidth- 
         each query id key has an associate list value. 
         - the elements represent the data transferred in MB, when we shared indexes
             between consecutive prefixes.
@@ -664,15 +664,11 @@ def bandwidth_consecutive(prefix_index_map):
 
     new_prefix_index_map = copy.deepcopy(prefix_index_map)
 
-    query_id_to_total_bandwidth = {}
+    query_id_bandwidth = {}
     for query_id, querytext in new_prefix_index_map.items():
 
-        query_id_to_total_bandwidth[query_id] = []
+        query_id_bandwidth[query_id] = []
         prev_indices = None
-        prev_prefix = None
-        last_index = None
-        next_indices_list = []
-        total_bandwidth = []
         consecutive = False
         for prefix, indices in reversed(querytext["prefixes"].items()):
             current_prefix = prefix
@@ -684,7 +680,6 @@ def bandwidth_consecutive(prefix_index_map):
                 # - the last element is number of common indexes between the full query and the
                 #   current index.
             current_indices = indices.flatten().tolist()
-
             if prev_indices is not None:
                 #the delta is the previous index
                 delta_change = prev_indices[-2] - current_indices[-2]
@@ -692,7 +687,7 @@ def bandwidth_consecutive(prefix_index_map):
                 if delta_change == 0:
                     consecutive = True
                 if (delta_change < 0 or delta_change > 0) and consecutive == True:
-                    query_id_to_total_bandwidth[query_id].append(prev_indices[-2] * 20)
+                    query_id_bandwidth[query_id].append(prev_indices[-2] * 20)
                     last_match_indices = prev_indices
                     last_common_with_final = prev_indices[-1]
                     consecutive = False
@@ -702,16 +697,13 @@ def bandwidth_consecutive(prefix_index_map):
             prev_prefix = current_prefix
 
         delta_change = last_prev_index[-2] - prev_indices[-2]
-
         if delta_change == 0:
-            query_id_to_total_bandwidth[query_id].append(last_prev_index[-2] * 20)
+            query_id_bandwidth[query_id].append(last_prev_index[-2] * 20)
 
-        query_id_to_total_bandwidth[query_id].append(last_common_with_final)
-
-
+        query_id_bandwidth[query_id].append(last_common_with_final)
 
         
-    return query_id_to_total_bandwidth
+    return query_id_bandwidth
 
 
 
