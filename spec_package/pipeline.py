@@ -705,27 +705,85 @@ def bandwidth_consecutive(prefix_index_map):
         
     return query_id_bandwidth
 
+def bandwidth_consecutive_k_words(prefix_index_map, k):
+    """
+    Return list of data transferred for each query with query ID
+    """
 
+    new_prefix_index_map = copy.deepcopy(prefix_index_map)
 
-                
+    query_id_bandwidth = {}
+    for query_id, querytext in new_prefix_index_map.items():
 
+        query_id_bandwidth[query_id] = []
+        prev_indices = None
+        consecutive = False
+        for prefix, indices in reversed(querytext["prefixes"].items()):
+            current_prefix = prefix
+            #Edge Case 1 - The first current_indices(at the start of the word)
+            #              does not have either the second last element and last element
+                #Note
+                # - the second last element is the number of common indexes betweeen the current prefix 
+                    #and the prev prefix
+                # - the last element is number of common indexes between the full query and the
+                #   current index.
+            current_prefix_length = len(prefix.split())
+            current_indices = indices.flatten().tolist()
 
-
-
+            if current_prefix_length == k:
+                common_with_final_indices = current_indices[-1]
+                query_id_bandwidth[query_id].append(common_with_final_indices * 20)
+                query_id_bandwidth[query_id].append(common_with_final_indices)
+                break
         
-
-        
-
-        
-
-# def plot_index_match_graph(prefix_index_map):
-
-#     for queries_text in prefix_index_map:
-
-#         for 
+    return query_id_bandwidth
 
 
-            
+def plot_bandwidth_k(query_id_total_bwidth):
+    # save_dir = f"saved_graphs/data_transferred_delay_mean/{document_name}"
+    # os.makedirs(save_dir, exist_ok=True)
+
+    for key, val in query_id_total_bwidth.items():
+        if isinstance(val, list) and len(val) > 0:  # Ensure the value is a list and not empty
+            missing_index = val[-1]  # Get the last element
+            val[-1] = ((5 - missing_index) * 20) / 125  # Modify the last element
+
+
+
+    # column_wise_avg = np.array([
+    #     np.mean(col[col != 0]) if np.any(col != 0) else 0
+    #     for col in query_id_total_bwidth.T  # Transpose to iterate over columns
+    # ])
+
+
+
+    #     # Plot the data
+    # plt.figure(figsize=(8, 6))
+    # plt.plot(column_wise_avg, extra_delays_list, marker='o', linestyle='-')
+    # plt.xlabel("Mean Data Transferred(MB)")
+    # plt.ylabel("Missing Chunks Delay(s)")
+    # plt.title("Mean Data Transferred(MB) vs. Missing Chunks Delay(s)")
+    # plt.grid(True)
+
+    # # Save and show the plot
+    # plot_path = os.path.join(save_dir, "bandwidth_mean_vs_delay.png")
+    # plt.savefig(plot_path)
+    # plt.show()
+
+    # print(f"Plot saved at: {plot_path}")
+    
+
+
+
+
+
+
+
+
+
+    
+
+
 
 #TODO
 # def average_chunks(df):
