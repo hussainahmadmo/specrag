@@ -532,8 +532,19 @@ def plot_tsne_per_query(prefix_2d_emb_map, data_embedding, save_dir="saved_graph
 
         plt.close(fig)  # Close figure to avoid memory issues
 
-def prefix_index_map(query_map, faiss_index: faiss.Index):
+import pickle
+
+def compute_prefix_index_map(query_map, faiss_index: faiss.Index, document_name):
     """Return the top 5 similar indexes retreived for a prefix."""
+    os.makedirs(os.path.dirname("data/prefix_map"), exist_ok=True)
+    save_path = f"data/prefix_map/{document_name}"
+
+    if os.path.exists(save_path):
+        with open(save_path, "rb") as f:
+            prefix_index_map = pickle.load(f)
+        return prefix_index_map
+
+
     prefix_index_map = {}
     for query_id, query_text in query_map.items():
             words = query_text.split()
@@ -548,6 +559,9 @@ def prefix_index_map(query_map, faiss_index: faiss.Index):
                 prefix_embedding = np.array(get_embedding([prefix]), dtype=np.float32)
                 _ , prefix_index = faiss_index.search(prefix_embedding, 5)
                 prefix_index_map[query_id]["prefixes"][prefix] = prefix_index
+
+    with open(save_path, "wb") as f:
+        pickle.dump(prefix_index_map, f)
 
     return prefix_index_map
 
@@ -646,20 +660,24 @@ def prev_prefix_match_intersect(prefix_index_map):
     return new_prefix_index_map
 
 
-def bandwidth_consecutive(prefix_index_map):
+def datatransferred_consecutive_top_k(prefix_index_map,
+                                    faiss_index,
+                                    top_k_chunks 
+                                    ):
     """
     Return list of data transferred for each query with query ID, 
-    with the consecutive method. At each prefix where the index are shared
+    with the consecutive method. At each prefix, check if indexes are common(shared)
     start retrieval. 
 
     Returns - 
     query_id_bandwidth- 
         each query id key has an associate list value. 
-        - the elements represent the data transferred in MB, when we shared indexes
-            between consecutive prefixes.
+        - the elements in the list represent the data transferred in MB, for the common indexes
+          between consecutive prefixes.
+        - the second last element of the list represents the extra data transferred at the end of the query for the missing chunks.
             
         -The last element of the list is the number of overlapping indexes with the final oracle, after the final consecutive retreival.
-         Use (5-last_elemet) to calculate the final delay.
+         Use (5-last_elemet) to calculate the missing chunk delay.
     """
 
     new_prefix_index_map = copy.deepcopy(prefix_index_map)
@@ -670,15 +688,78 @@ def bandwidth_consecutive(prefix_index_map):
         query_id_bandwidth[query_id] = []
         prev_indices = None
         consecutive = False
+        last_common_with_final = 0  # ✅ Initialize with default value to avoid undefined variable
+        common_overlapping_indexes_list = []
+
+        overlap_set_list = []
         for prefix, indices in reversed(querytext["prefixes"].items()):
             current_prefix = prefix
-            #Edge Case 1 - The first current_indices(at the start of the word)
-            #              does not have either the second last element and last element
+            current_prefix_embedding = np.array(get_embedding([prefix]), dtype=np.float32)
+            _ , current_indices = faiss_index.search(current_prefix_embedding, top_k_chunks)
+
+            if prev_indices is not None:
+                previous_prefix_embedding = np.array(get_embedding([prev_prefix]), dtype=np.float32)
+                _ , previous_indices = faiss_index.search(previous_prefix_embedding, top_k_chunks)
+
+                common_overlapping_indexes = set(current_indices.flatten().tolist()) & set(previous_indices.flatten().tolist())
+                common_overlapping_indexes_list.append(common_overlapping_indexes)
+
+            prev_indices = current_indices
+            prev_prefix = current_prefix
+        #check the difference between list and set
+        flattend_common_overlapping_idx_list =  [elem for s in common_overlapping_indexes_list for elem in s]
+        #use this length to calculate the data transferred
+        flattend_common_overlapping_set = set.union(*common_overlapping_indexes_list)
+
+        chunks_data_transferred = len(flattend_common_overlapping_set) * 20
+        last_query_text = next(iter(new_prefix_index_map[query_id]["prefixes"]))
+        last_index = new_prefix_index_map[query_id]["prefixes"][last_query_text]
+        last_prefix_indices = last_index.flatten().tolist()
+
+        common_index_with_full_query = set(last_prefix_indices) & flattend_common_overlapping_set
+        missing_chunks_delay = ((5-len(common_index_with_full_query))* 20) / 125
+
+        #all the chunks transferred.
+        query_id_bandwidth[query_id].append(chunks_data_transferred)
+        query_id_bandwidth[query_id].append((5-len(common_index_with_full_query)) * 20)
+        query_id_bandwidth[query_id].append(missing_chunks_delay)
+        
+    return query_id_bandwidth
+
+
+def datatransferred_consecutive(prefix_index_map):
+    """
+    Return list of data transferred for each query with query ID, 
+    with the consecutive method. At each prefix, check if indexes are common(shared)
+    start retrieval. 
+
+    Returns - 
+    query_id_bandwidth- 
+        each query id key has an associate list value. 
+        - the elements in the list represent the data transferred in MB, for the common indexes
+          between consecutive prefixes.
+        - the second last element of the list represents the extra data transferred at the end of the query for the missing chunks.
+            
+        -The last element of the list is the number of overlapping indexes with the final oracle, after the final consecutive retreival.
+         Use (5-last_elemet) to calculate the missing chunk delay.
+    """
+
+    new_prefix_index_map = copy.deepcopy(prefix_index_map)
+
+    query_id_bandwidth = {}
+    for query_id, querytext in new_prefix_index_map.items():
+
+        query_id_bandwidth[query_id] = []
+        prev_indices = None
+        consecutive = False
+        last_common_with_final = 0  # ✅ Initialize with default value to avoid undefined variable
+
+        for prefix, indices in reversed(querytext["prefixes"].items()):
+            current_prefix = prefix
+            #Edge Case 1 - The first current_prefix(at the start of the query) does not have either the second last element and last element.(no common indexes to compare with)
                 #Note
-                # - the second last element is the number of common indexes betweeen the current prefix 
-                    #and the prev prefix
-                # - the last element is number of common indexes between the full query and the
-                #   current index.
+                # - the second last element in current_prefix is the number of common indexes(overlapping) betweeen the current prefix and the prev prefix.
+                # - the last element in the current_prefix is the number of common(overlapping) indexes between the full query and the current prefix.
             current_indices = indices.flatten().tolist()
             if prev_indices is not None:
                 #the delta is the previous index
@@ -700,43 +781,99 @@ def bandwidth_consecutive(prefix_index_map):
         if delta_change == 0:
             query_id_bandwidth[query_id].append(last_prev_index[-2] * 20)
 
+        extra_bandwidth = (5 - last_common_with_final) * 20
+        query_id_bandwidth[query_id].append(extra_bandwidth)
         query_id_bandwidth[query_id].append(last_common_with_final)
 
         
     return query_id_bandwidth
 
-def bandwidth_consecutive_k_words(prefix_index_map, k):
-    """
-    Return list of data transferred for each query with query ID
-    """
 
+def data_transfer_words(word_length,
+                        prefix_index_map
+                                  ):
     new_prefix_index_map = copy.deepcopy(prefix_index_map)
 
-    query_id_bandwidth = {}
+    query_id_data_transfer= {}
     for query_id, querytext in new_prefix_index_map.items():
 
-        query_id_bandwidth[query_id] = []
-        prev_indices = None
-        consecutive = False
+        if query_id not in query_id_data_transfer:
+            query_id_data_transfer[query_id] = []
+
         for prefix, indices in reversed(querytext["prefixes"].items()):
-            current_prefix = prefix
-            #Edge Case 1 - The first current_indices(at the start of the word)
-            #              does not have either the second last element and last element
-                #Note
-                # - the second last element is the number of common indexes betweeen the current prefix 
-                    #and the prev prefix
-                # - the last element is number of common indexes between the full query and the
-                #   current index.
             current_prefix_length = len(prefix.split())
             current_indices = indices.flatten().tolist()
 
             if current_prefix_length == k:
-                common_with_final_indices = current_indices[-1]
-                query_id_bandwidth[query_id].append(common_with_final_indices * 20)
-                query_id_bandwidth[query_id].append(common_with_final_indices)
-                break
+                final_query = next(iter(prefix_index_map[query_id]["prefixes"].keys()))
+                length_of_final_query = len(final_query.split())
+
+                if current_prefix_length < length_of_final_query:
+                    final_index_values = next(iter(prefix_index_map[query_id]["prefixes"].values()))
+                    number_of_common_indexes_with_final = len(set(current_indices) & set(final_index_values.flatten().tolist()))
+                    #data transferred for 5 chunks(always 5 for fixed words)
+                    data_transfer = 5 * 20
+                    extra_data_transferred = (5 - number_of_common_indexes_with_final) * 20
+                    query_id_data_transfer[query_id].append(data_transfer + extra_data_transferred)
+                    extra_delay = ((5-number_of_common_indexes_with_final) * 20) / 125 
+                    query_id_data_transfer[query_id].append(extra_delay)
+                    break
+
+        #empty list
+        if not query_id_data_transfer[query_id]:
+            #no bandwidth used
+            query_id_data_transfer[query_id].append(100)
+            #all chunks are missing - calculate delay for all
+            query_id_data_transfer[query_id].append((5*20) / 125)
+
         
-    return query_id_bandwidth
+    return query_id_data_transfer
+
+def data_transfer_top_k_word(k,
+                                prefix_index_map,
+                                top_k_chunks,
+                                faiss_index
+                                ):
+    new_prefix_index_map = copy.deepcopy(prefix_index_map)
+
+    query_id_data_transfer= {}
+    for query_id, querytext in new_prefix_index_map.items():
+
+        if query_id not in query_id_data_transfer:
+            query_id_data_transfer[query_id] = []
+
+        for prefix, indices in reversed(querytext["prefixes"].items()):
+            current_prefix_length = len(prefix.split())
+            current_indices = indices.flatten().tolist()
+
+            if current_prefix_length == k:
+                final_query = next(iter(prefix_index_map[query_id]["prefixes"].keys()))
+                length_of_final_query = len(final_query.split())
+
+                if current_prefix_length < length_of_final_query:
+                    final_index_values = next(iter(prefix_index_map[query_id]["prefixes"].values()))
+                    prefix_embedding = np.array(get_embedding([prefix]), dtype=np.float32)
+                    _, prefix_index = faiss_index.search(prefix_embedding, top_k_chunks)
+
+                    number_of_common_index_values = len(set(prefix_index.flatten().tolist()) & set(final_index_values.flatten().tolist()))
+
+                    data_transfer = top_k_chunks * 20 
+                    extra_data_transferred = (5 - number_of_common_index_values) * 20 
+                    query_id_data_transfer[query_id].append(data_transfer + extra_data_transferred)
+                    extra_delay = ((5-number_of_common_index_values) * 20) / 125
+                    query_id_data_transfer[query_id].append(extra_delay)
+                    break
+                #empty list
+        if not query_id_data_transfer[query_id]:
+            #no bandwidth used
+            query_id_data_transfer[query_id].append(100)
+            #all chunks are missing - calculate delay for all
+            query_id_data_transfer[query_id].append((5*20) / 125)
+
+    return query_id_data_transfer
+                
+
+
 
 
 def plot_bandwidth_k(query_id_total_bwidth):

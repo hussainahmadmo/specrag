@@ -62,7 +62,18 @@ datasets = {
         "json_output_path": "./data/json_files/sec-10/sec-10-csize200.json",
         "index_storage_path": "./index_store/sec-10.faiss",
         "query_path": "./data/queries/sec-10/qna_data.csv"
+    },
+        "wikiqma": {
+        "document_name": "wikiqma", 
+        "context_path" : "./data/context_files/wikiqma.csv",
+        "text_output_path": "./data/text_files/wikiqma/combined.txt",
+        "json_output_path": "./data/json_files/wikiqma/wikiqma-csize200.json",
+        "index_storage_path": "./index_store/wikiqma.faiss",
+        "query_path": "./data/queries/wikiqma/wikiqma.csv"
     }
+
+
+
 }
 
 
@@ -72,7 +83,9 @@ from utils import filter_questions
 # from pipeline import average_chunks
 def run_pipeline(dataset_name, 
                 model_path, 
-                chunk_size):
+                chunk_size,
+                use_pdf,
+                ):
     """
     Runs the complete pipeline for a given dataset and query type.
 
@@ -86,8 +99,15 @@ def run_pipeline(dataset_name,
     # Load dataset configuration
     dataset = datasets[dataset_name]
     # Extract text from the dataset
-    text = load_pdf(pdf_paths=dataset["pdf_paths"], 
-                    output_txt_path=dataset["text_output_path"])
+
+    from utils import load_context
+    if use_pdf:
+        text = load_pdf(pdf_paths=dataset["pdf_paths"], 
+                        output_txt_path=dataset["text_output_path"])
+    else:
+        text = load_context(context_path = dataset["context_path"],
+                            output_txt_path=dataset["text_output_path"]
+                            )
     # total length of tokens per chunk
     token_length_per_chunk = chunk_text(
         text=text,
@@ -98,6 +118,7 @@ def run_pipeline(dataset_name,
     )
     # Plot the distribution of token lengths of chunks
     plot_token_length_distribution(token_length_per_chunk, append_suffix=dataset["document_name"])
+
     # Build embeddings
     index = build_embeddings(json_path=dataset["json_output_path"], 
                              index_path=dataset["index_storage_path"])
@@ -106,7 +127,8 @@ def run_pipeline(dataset_name,
     if dataset["query_path"].endswith(".csv"):
         query_path = dataset['query_path']
         queries_list = filter_questions(query_path=query_path,
-                                        rag_type=None
+                                        rag_type=None,
+                                        flatten_distribution=False
                                                )
 
     from pipeline import compute_tsne
@@ -116,8 +138,13 @@ def run_pipeline(dataset_name,
     # prefix_map, data_emb = compute_tsne(json_path=dataset["json_output_path"], 
     #                         id_query_map=pg_query_map)
     # plot_tsne_per_query(prefix_map, data_embedding=data_emb)
-    from pipeline import prefix_index_map
-    prefix_index_map = prefix_index_map(pg_query_map, faiss_index=index)
+    from pipeline import compute_prefix_index_map
+    prefix_index_map = compute_prefix_index_map(pg_query_map, faiss_index=index, document_name=dataset["document_name"])
+
+        #Plot the distribution of query lengths.
+    from utils import plot_query_length_distribution
+    plot_query_length_distribution(prefix_index_map=prefix_index_map, document_name=dataset["document_name"])
+    
     from pipeline import prev_prefix_match_ordered
     # prev_prefix_index_map = prev_prefix_match_ordered(prefix_index_map)
     # from utils import plot_prefix_match_ordered
@@ -127,69 +154,81 @@ def run_pipeline(dataset_name,
 
     from utils import plot_prefix_match_intersect
     # plot_prefix_match_intersect(prev_prefix_index_map_intersection, document_name=dataset["document_name"])
-    from pipeline import bandwidth_consecutive
-    query_id_bandwidth_use_final = bandwidth_consecutive(prev_prefix_index_map_intersection)
+    from pipeline import datatransferred_consecutive
+    query_id_datatransferred_map = datatransferred_consecutive(prev_prefix_index_map_intersection)
 
     from utils import plot_total_bandwidth
-    plot_total_bandwidth(query_id_bandwidth_use_final)
+    # plot_total_bandwidth(query_id_datatransferred_map)
     from utils import plot_total_bandwidth_heatmap
-    plot_total_bandwidth_heatmap(query_id_bandwidth_use_final)
-
-    from utils import bandwidth_mean
-    mean_bandwidth, mean_delay = bandwidth_mean(query_id_bandwidth_use_final, document_name=dataset["document_name"])
-
-    query_id_total_bwidth = bandwidth_consecutive(prev_prefix_index_map_intersection)
+    # plot_total_bandwidth_heatmap(query_id_bandwidth_use_final)
     
-    from pipeline import bandwidth_consecutive_k_words
-
-    k_values = [5, 10, 15, 20, 25]
+    """ Plot data transfer for tio"""
+    from pipeline import data_transfer_words
+    word_lengths = [5, 10, 15, 20, 25]
     from pipeline import plot_bandwidth_k
-
     word_map = {}
-    for k in k_values: 
-        qid_bwidth = bandwidth_consecutive_k_words(prefix_index_map=prev_prefix_index_map_intersection, k=k)
-        mean_bandwidth, mean_delay = bandwidth_mean(qid_bwidth, dataset["document_name"])
+    for k in word_lengths: 
+        qid_bwidth = data_transfer_words(word_length=k, prefix_index_map = prefix_index_map)
+        from utils import data_transfer_mean_k_words
+        mean_bandwidth, mean_delay = data_transfer_mean_k_words(qid_bwidth, dataset["document_name"])
         word_map[k] = [mean_bandwidth, mean_delay]
 
-    consec_mean_bwidth, consec_mean_delay = bandwidth_mean(query_id_total_bwidth, dataset["document_name"])
+    top_k_list = [5, 10, 20, 30]
+    from pipeline import data_transfer_top_k_word
+    for k in word_lengths: 
+        for top_k in top_k_list:
+            qid_bwidth = data_transfer_top_k_word(k=k, 
+                                                 prefix_index_map = prefix_index_map,
+                                                 top_k_chunks = top_k,
+                                                 faiss_index=index)
+        
+            from utils import data_transfer_mean_k_words
+            mean_bandwidth, mean_delay = data_transfer_mean_k_words(qid_bwidth, dataset["document_name"])
+            word_map[f"WS:{k}-Top{top_k}chunks"] = [mean_bandwidth, mean_delay]
+
+
+    """Plot datatransfer for CC Algo - only 5 words(This might not work.)"""
+    from utils import data_transfer_mean_consecutive
+    consec_mean_bwidth, consec_mean_delay = data_transfer_mean_consecutive(query_id_datatransferred_map, dataset["document_name"])
     word_map["consecutive"] = [consec_mean_bwidth, consec_mean_delay]
-    query_id_total_bwidth = bandwidth_consecutive(prev_prefix_index_map_intersection)
+    
+    """Plot datatransfer for different data/delay with CC Algo """
 
+    top_k_chunks = [5, 10, 20, 30]
+    from pipeline import datatransferred_consecutive_top_k
+    for top_k in top_k_chunks:
+        qid_bwidth = datatransferred_consecutive_top_k(prefix_index_map = prefix_index_map,
+                                                top_k_chunks = top_k,
+                                                faiss_index=index)
+    
+        from utils import data_transfer_mean_k_words
+        mean_bandwidth, mean_delay = data_transfer_mean_k_words(qid_bwidth, dataset["document_name"])
+        word_map[f"CC-Top{top_k}chunks"] = [mean_bandwidth, mean_delay]
 
-
-    from computeIndexRetriever import AdaptiveStabilityRetriever
-
-    for window_size in np.arange(1, 10, 2):  # Example range [1, 5] with step 0.2
-        for penalty_factor in np.arange(0.1, 1, 0.2):
-            for decay_rate in np.arange(0.1, 1, 0.2):
-                for stability_threshold in np.arange(0.1, 1, 0.2):
-                    asr = AdaptiveStabilityRetriever(window_size=window_size,
-                                                     penalty_factor=penalty_factor,
-                                                     decay_rate=decay_rate,
-                                                     stability_threshold=stability_threshold
-                                                     )
-                    index_map, index = asr.should_retrieve(prev_prefix_index_map_intersection)
-
-                    from utils import data_transfer_mean
-                    mean_data_transfer, mean_delay = data_transfer_mean(index_map, dataset["document_name"])
-                    word_map[f"WS:{window_size}-PF:{penalty_factor}-DR:{decay_rate}-ST:{stability_threshold}"] = [mean_data_transfer, mean_delay]
-
-
+    
     from utils import plot_mean_bandwidth_delay
     plot_mean_bandwidth_delay(word_map, dataset["document_name"])
-    
-
-
-
 
     
+    # from computeIndexRetriever import AdaptiveStabilityRetriever
+
+    # for window_size in np.arange(2, 10, 2):  # Example range [1, 5] with step 0.2
+    #             for stability_threshold in np.round(np.arange(0.5, 1, 0.2), 1):
+    #                 asr = AdaptiveStabilityRetriever(window_size=int(window_size),
+    #                                                  stability_threshold=stability_threshold
+    #                                                  )
+    #                 # index_map, index = asr.should_retrieve(prev_prefix_index_map_intersection)
+
+    #                 # from utils import data_transfer_mean
+    #                 # mean_data_transfer, mean_delay = data_transfer_mean(index_map, dataset["document_name"])
+    #                 word_map[f"WS:{window_size}-ST:{stability_threshold}"] = [mean_data_transfer, mean_delay]
 
 # This makes the script executable
 if __name__ == "__main__":
     runs = [
         # {"dataset": "paul_graham", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type": "complex_20", "chunk_size": 200},
-        {"dataset": "sec-10", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type" : "complex_20", "chunk_size" : 200}
-        # {"dataset": "wikimqa", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type" : "complex_20", "chunk_size" : 200}
+        {"dataset": "sec-10", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type" : "complex_20", "chunk_size" : 200, "use_pdf" : True}
+        # {"dataset": "wikiqma", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type" : "complex_20", "chunk_size" : 200, "use_pdf": False}
 
     ]
 
@@ -198,5 +237,6 @@ if __name__ == "__main__":
         run_pipeline(dataset_name=run["dataset"],
                      model_path=run["model_path"],
                      chunk_size=run["chunk_size"],
+                     use_pdf=run["use_pdf"]
                      )
 
