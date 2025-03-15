@@ -15,11 +15,12 @@ from utils import (
 from pipeline import load_model_tokenizer, chunk_text, build_embeddings, get_query_indices, measure_retained_indexes, measure_rate, measure_typing_time
 from pipeline import measure_bandwidth_delay
 from collections import defaultdict
+from pipeline import compute_prefix_index_map
+
 # ---------- Logging Setup ----------
 logging.basicConfig(filename="pipeline.log", level=logging.INFO, 
                     format="%(asctime)s - %(levelname)s - %(message)s")
 
-# ---------- GLOBAL SETTINGS ----------
 chunk_save_path = "./data/json_files/"
 
 # Define different dataset configurations
@@ -70,9 +71,109 @@ datasets = {
         "json_output_path": "./data/json_files/wikiqma/wikiqma-csize200.json",
         "index_storage_path": "./index_store/wikiqma.faiss",
         "query_path": "./data/queries/wikiqma/wikiqma.csv"
-    }
+    }, 
+
+    "hotpotqa": {
+        "document_name": "hotpotqa",
+        "context_path" : "./data/context_files/hotpotqa.csv",
+        "text_output_path" : "./data/text_files/hotpotqa/combined.txt",
+        "json_output_path" : "./data/json_files/hotpotqa/hotpotqa-csize200.json",
+        "index_storage_path": "./index_store/hotpotqa.faiss",
+        "query_path": "./data/queries/hotpotqa/hotpotqa.csv"
+    },
+
+    "multifieldqa_en":
+    {
+        "document_name": "multifieldqa_en",
+        "context_path": "./data/context_files/multifieldqa_en.csv",
+        "text_output_path": "./data/text_files/multifieldqa_en/combined.txt",
+        "json_output_path": "./data/json_files/multifieldqa_en/multifieldqa_en-csize200.json",
+        "index_storage_path": "./index_store/multifieldqa_en.faiss",
+        "query_path": "./data/queries/multifieldqa_en/multifieldqa_en.csv"
+    },
+
+    "musique":
+    {
+        "document_name": "musique",
+        "context_path": "./data/context_files/musique.csv",
+        "text_output_path": "./data/text_files/musique/combined.txt",
+        "json_output_path": "./data/json_files/musique/musique-csize200.json",
+        "index_storage_path": "./index_store/musique.faiss",
+        "query_path": "./data/queries/musique/musique.csv"
+    },
+    
+    "passage_retrieval_en": {
+        "document_name": "passage_retrieval_en",
+        "context_path": "./data/context_files/passage_retrieval_en.csv",
+        "text_output_path": "./data/text_files/passage_retrieval_en/combined.txt",
+        "json_output_path": "./data/json_files/passage_retrieval_en/passage_retrieval_en-csize200.json",
+        "index_storage_path": "./index_store/passage_retrieval_en.faiss",
+        "query_path": "./data/queries/passage_retrieval_en/passage_retrieval_en.csv"
+    },
+    
+    "qasper": {
+        "document_name": "qasper",
+        "context_path": "./data/context_files/qasper.csv",
+        "text_output_path": "./data/text_files/qasper/combined.txt",
+        "json_output_path": "./data/json_files/qasper/qasper-csize200.json",
+        "index_storage_path": "./index_store/qasper.faiss",
+        "query_path": "./data/queries/qasper/qasper.csv"
+    },
+    
+    "repobench-p": {
+        "document_name": "repobench-p",
+        "context_path": "./data/context_files/repobench-p.csv",
+        "text_output_path": "./data/text_files/repobench-p/combined.txt",
+        "json_output_path": "./data/json_files/repobench-p/repobench-p-csize200.json",
+        "index_storage_path": "./index_store/repobench-p.faiss",
+        "query_path": "./data/queries/repobench-p/repobench-p.csv"
+    },
+
+    "triviaqa": {
+        "document_name": "triviaqa",
+        "context_path": "./data/context_files/triviaqa.csv",
+        "text_output_path": "./data/text_files/triviaqa/combined.txt",
+        "json_output_path": "./data/json_files/triviaqa/triviaqa-csize200.json",
+        "index_storage_path": "./index_store/triviaqa.faiss",
+        "query_path": "./data/queries/triviaqa/triviaqa.csv"
+    },
+
+    "trec": {
+        "document_name": "trec",
+        "context_path": "./data/context_files/trec.csv",
+        "text_output_path": "./data/text_files/trec/combined.txt",
+        "json_output_path": "./data/json_files/trec/trec-csize200.json",
+        "index_storage_path": "./index_store/trec.faiss",
+        "query_path": "./data/queries/trec/trec.csv"
+    },
 
 
+    "samsum": {
+        "document_name": "samsum",
+        "context_path": "./data/context_files/samsum.csv",
+        "text_output_path": "./data/text_files/samsum/combined.txt",
+        "json_output_path": "./data/json_files/samsum/samsum-csize200.json",
+        "index_storage_path": "./index_store/samsum.faiss",
+        "query_path": "./data/queries/samsum/samsum.csv"
+    },
+
+    "qmsum": {
+        "document_name": "qmsum",
+        "context_path": "./data/context_files/qmsum.csv",
+        "text_output_path": "./data/text_files/qmsum/combined.txt",
+        "json_output_path": "./data/json_files/qmsum/qmsum-csize200.json",
+        "index_storage_path": "./index_store/qmsum.faiss",
+        "query_path": "./data/queries/qmsum/qmsum.csv"
+    },
+
+    "narrativeqa": {
+        "document_name": "narrativeqa",
+        "context_path": "./data/context_files/narrativeqa.csv",
+        "text_output_path": "./data/text_files/narrativeqa/combined.txt",
+        "json_output_path": "./data/json_files/narrativeqa/narrativeqa-csize200.json",
+        "index_storage_path": "./index_store/narrativeqa.faiss",
+        "query_path": "./data/queries/narrativeqa/narrativeqa.csv"
+    },
 
 }
 
@@ -81,7 +182,7 @@ from utils import generate_mean_statistics
 from pipeline import establish_baseline
 from utils import filter_questions
 # from pipeline import average_chunks
-def run_pipeline(dataset_name, 
+def running_pipeline(dataset_name, 
                 model_path, 
                 chunk_size,
                 use_pdf,
@@ -94,6 +195,8 @@ def run_pipeline(dataset_name,
         model_path (str): Path to the model to be used.
         chunk_size (int): Size of text chunks.
     """
+    print(f"Running pipeline with dataset: {dataset_name}, model: {model_path}, chunk size: {chunk_size}, use_pdf: {use_pdf}")
+
     # Load model and tokenizer
     model, tokenizer = load_model_tokenizer(model_path)
     # Load dataset configuration
@@ -138,7 +241,6 @@ def run_pipeline(dataset_name,
     # prefix_map, data_emb = compute_tsne(json_path=dataset["json_output_path"], 
     #                         id_query_map=pg_query_map)
     # plot_tsne_per_query(prefix_map, data_embedding=data_emb)
-    from pipeline import compute_prefix_index_map
     prefix_index_map = compute_prefix_index_map(pg_query_map, faiss_index=index, document_name=dataset["document_name"])
 
         #Plot the distribution of query lengths.
@@ -154,8 +256,6 @@ def run_pipeline(dataset_name,
 
     from utils import plot_prefix_match_intersect
     # plot_prefix_match_intersect(prev_prefix_index_map_intersection, document_name=dataset["document_name"])
-    from pipeline import datatransferred_consecutive
-    query_id_datatransferred_map = datatransferred_consecutive(prev_prefix_index_map_intersection)
 
     from utils import plot_total_bandwidth
     # plot_total_bandwidth(query_id_datatransferred_map)
@@ -173,11 +273,11 @@ def run_pipeline(dataset_name,
         mean_bandwidth, mean_delay = data_transfer_mean_k_words(qid_bwidth, dataset["document_name"])
         word_map[k] = [mean_bandwidth, mean_delay]
 
-    top_k_list = [5, 10, 20, 30]
+    top_k_list = [5, 10, 20, 30, 40, 50]
     from pipeline import data_transfer_top_k_word
     for k in word_lengths: 
         for top_k in top_k_list:
-            qid_bwidth = data_transfer_top_k_word(k=k, 
+            qid_bwidth = data_transfer_top_k_word(word_length=k, 
                                                  prefix_index_map = prefix_index_map,
                                                  top_k_chunks = top_k,
                                                  faiss_index=index)
@@ -185,16 +285,10 @@ def run_pipeline(dataset_name,
             from utils import data_transfer_mean_k_words
             mean_bandwidth, mean_delay = data_transfer_mean_k_words(qid_bwidth, dataset["document_name"])
             word_map[f"WS:{k}-Top{top_k}chunks"] = [mean_bandwidth, mean_delay]
-
-
-    """Plot datatransfer for CC Algo - only 5 words(This might not work.)"""
-    from utils import data_transfer_mean_consecutive
-    consec_mean_bwidth, consec_mean_delay = data_transfer_mean_consecutive(query_id_datatransferred_map, dataset["document_name"])
-    word_map["consecutive"] = [consec_mean_bwidth, consec_mean_delay]
     
     """Plot datatransfer for different data/delay with CC Algo """
 
-    top_k_chunks = [5, 10, 20, 30]
+    top_k_chunks = [5, 10, 20, 30, 40, 50]
     from pipeline import datatransferred_consecutive_top_k
     for top_k in top_k_chunks:
         qid_bwidth = datatransferred_consecutive_top_k(prefix_index_map = prefix_index_map,
@@ -223,20 +317,21 @@ def run_pipeline(dataset_name,
     #                 # mean_data_transfer, mean_delay = data_transfer_mean(index_map, dataset["document_name"])
     #                 word_map[f"WS:{window_size}-ST:{stability_threshold}"] = [mean_data_transfer, mean_delay]
 
-# This makes the script executable
+
 if __name__ == "__main__":
-    runs = [
-        # {"dataset": "paul_graham", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type": "complex_20", "chunk_size": 200},
-        {"dataset": "sec-10", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type" : "complex_20", "chunk_size" : 200, "use_pdf" : True}
-        # {"dataset": "wikiqma", "model_path": "meta-llama/Llama-3.1-8B-Instruct", "query_type" : "complex_20", "chunk_size" : 200, "use_pdf": False}
+    print("Main Function")
+    parser = argparse.ArgumentParser(description="Run dataset processing pipeline")
+    parser.add_argument("--dataset", required=True, help="Dataset name")
+    parser.add_argument("--model_path", required=True, help="Path to the model")
+    parser.add_argument("--chunk_size", type=int, required=True, help="Chunk size")
+    parser.add_argument("--use_pdf", type=lambda x: (str(x).lower() == 'true'), required=True, help="Use PDF (true/false)")
 
-    ]
+    args = parser.parse_args()
 
-    # Loop through different configurations and execute
-    for run in runs:
-        run_pipeline(dataset_name=run["dataset"],
-                     model_path=run["model_path"],
-                     chunk_size=run["chunk_size"],
-                     use_pdf=run["use_pdf"]
-                     )
+    print("Parsed arguments:", args)  # Debugging line
+    print(f"Dataset: {args.dataset}")
+    print(f"Model Path: {args.model_path}")
+    print(f"Chunk Size: {args.chunk_size}")
+    print(f"Use PDF: {args.use_pdf}")
 
+    running_pipeline(args.dataset, args.model_path, args.chunk_size, args.use_pdf)
